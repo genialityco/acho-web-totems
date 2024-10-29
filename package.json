@@ -12,10 +12,15 @@
   "dependencies": {
     "@mantine/core": "7.13.4",
     "@mantine/hooks": "7.13.4",
+    "@tabler/icons-react": "^3.21.0",
+    "axios": "^1.7.7",
+    "lodash.debounce": "^4.0.8",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.27.0"
   },
   "devDependencies": {
+    "@types/lodash.debounce": "^4",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^7.13.1",
