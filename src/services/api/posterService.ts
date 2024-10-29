@@ -1,7 +1,10 @@
+import { SetStateAction } from "react";
 import api from "./api";
 
 // Interfaz para Posters
 export interface Poster {
+  status: string;
+  data: SetStateAction<Poster | null>;
   _id: string;
   title: string;
   category: string;

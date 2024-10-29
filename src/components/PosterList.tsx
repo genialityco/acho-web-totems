@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   TextInput,
   Card,
@@ -140,7 +140,7 @@ export const PosterList = () => {
             Página {page} de {totalPages}
           </Text>
           <Button
-          size="lg"
+            size="lg"
             onClick={() => setPage(page + 1)}
             disabled={page === totalPages || loading}
           >

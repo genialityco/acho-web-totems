@@ -75,9 +75,9 @@ const PosterDetail = () => {
       const userId = member.userId;
 
       // Buscar si el usuario ya ha votado por un póster
-      const posterResponse = await searchPosters({ voters: userId });
+      const posterResponse = await searchPosters({ voters: userId }) as { data: { items: Poster[] } };
 
-      const votedPoster = posterResponse?.data?.items[0];
+      const votedPoster = posterResponse.data.items[0];
 
       if (votedPoster) {
         setVoteError(`Ya has votado por el póster: ${votedPoster.title}.`);
