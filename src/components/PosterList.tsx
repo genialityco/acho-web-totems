@@ -132,7 +132,7 @@ export const PosterList = () => {
       />
 
       {/* Filtros de topic y category */}
-      {/* <Group mb="md" justify="space-around">
+      <Group mb="md" justify="space-around">
         <Select
           placeholder="Filtrar por topic"
           data={topics}
@@ -147,7 +147,7 @@ export const PosterList = () => {
           onChange={handleCategoryChange}
           clearable
         />
-      </Group> */}
+      </Group>
 
       {/* Contenedor con scroll interno para la lista de pósters */}
       <Box
