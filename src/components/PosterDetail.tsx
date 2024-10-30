@@ -89,7 +89,7 @@ const PosterDetail = () => {
       setIsVoteModalOpen(false);
     } catch (error) {
       console.error("Error al buscar el usuario o registrar el voto:", error);
-      setVoteError("Hubo un error al procesar tu voto. Intenta de nuevo.");
+      setVoteError("Persona no habilitada para votar.");
     } finally {
       setIsVoting(false);
     }
