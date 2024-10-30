@@ -77,7 +77,7 @@ const PosterDetail = () => {
       // Buscar si el usuario ya ha votado por un póster
       const posterResponse = await searchPosters({ voters: userId }) as { data: { items: Poster[] } };
 
-      const votedPoster = posterResponse.data.items[0];
+      const votedPoster = posterResponse?.data?.items[0];
 
       if (votedPoster) {
         setVoteError(`Ya has votado por el póster: ${votedPoster.title}.`);
@@ -89,7 +89,7 @@ const PosterDetail = () => {
       setIsVoteModalOpen(false);
     } catch (error) {
       console.error("Error al buscar el usuario o registrar el voto:", error);
-      setVoteError("Persona no habilitada para votar.");
+      setVoteError("Hubo un error al procesar tu voto. Intenta de nuevo.");
     } finally {
       setIsVoting(false);
     }
@@ -105,7 +105,7 @@ const PosterDetail = () => {
       }
     } catch (error) {
       console.error("Error al votar por el póster:", error);
-      setVoteError("Persona no habilitada para votar.");
+      setVoteError("Hubo un error al procesar tu voto. Intenta de nuevo.");
     }
   };
 
