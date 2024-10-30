@@ -105,7 +105,7 @@ const PosterDetail = () => {
       }
     } catch (error) {
       console.error("Error al votar por el póster:", error);
-      setVoteError("Hubo un error al procesar tu voto. Intenta de nuevo.");
+      setVoteError("Persona no habilitada para votar.");
     }
   };
 

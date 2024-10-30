@@ -10,6 +10,7 @@ import {
   SimpleGrid,
   Stack,
   Box,
+  Select,
 } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { searchPosters, Poster } from "../services/api/posterService";
@@ -23,6 +24,10 @@ export const PosterList = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [limit] = useState<number>(10);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const handler = debounce(() => {
@@ -37,6 +42,8 @@ export const PosterList = () => {
     try {
       const filters = {
         search: debouncedSearchTerm,
+        topic: selectedTopic,
+        category: selectedCategory,
         page,
         limit,
       };
@@ -48,6 +55,13 @@ export const PosterList = () => {
       if (response.status === "success") {
         setPosters(response.data.items);
         setTotalPages(response.data.totalPages);
+
+        // Obtener las opciones de topics y categories
+        const allTopics = new Set(response.data.items.map((poster) => poster.topic));
+        const allCategories = new Set(response.data.items.map((poster) => poster.category));
+
+        setTopics(Array.from(allTopics).filter(Boolean));
+        setCategories(Array.from(allCategories).filter(Boolean));
       } else {
         setPosters([]);
       }
@@ -60,10 +74,20 @@ export const PosterList = () => {
 
   useEffect(() => {
     fetchFilteredPosters();
-  }, [debouncedSearchTerm, page]);
+  }, [debouncedSearchTerm, selectedTopic, selectedCategory, page]);
 
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
+    setPage(1);
+  };
+
+  const handleTopicChange = (value: string | null) => {
+    setSelectedTopic(value);
+    setPage(1);
+  };
+
+  const handleCategoryChange = (value: string | null) => {
+    setSelectedCategory(value);
     setPage(1);
   };
 
@@ -107,10 +131,28 @@ export const PosterList = () => {
         mb="md"
       />
 
+      {/* Filtros de topic y category */}
+      <Group mb="md" justify="space-around">
+        <Select
+          placeholder="Filtrar por topic"
+          data={topics}
+          value={selectedTopic}
+          onChange={handleTopicChange}
+          clearable
+        />
+        <Select
+          placeholder="Filtrar por categoría"
+          data={categories}
+          value={selectedCategory}
+          onChange={handleCategoryChange}
+          clearable
+        />
+      </Group>
+
       {/* Contenedor con scroll interno para la lista de pósters */}
       <Box
         style={{
-          height: "1720px", // Altura máxima para el contenedor con scroll
+          height: "1720px",
           overflowY: "auto",
           marginBottom: "1rem",
         }}
