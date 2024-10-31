@@ -175,11 +175,12 @@ const PosterDetail = () => {
           marginBottom: "2rem",
         }}
       >
-        <iframe
+        {/* <iframe
           src={`https://drive.google.com/viewerng/viewer?embedded=true&url=${poster.urlPdf}`}
           title="Previsualización del PDF"
           style={{ width: "100%", height: "100%", border: "none" }}
-        />
+        /> */}
+        <iframe src={poster.urlPdf} title="Póster" style={{ width: "100%", height: "100%", border: "none" }} />
       </Box>
 
       <Group justify="space-around">
