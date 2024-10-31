@@ -19,10 +19,12 @@ import {
   voteForPoster,
 } from "../services/api/posterService";
 import { searchMembers } from "../services/api/memberService";
+import { usePosters } from "../context/PostersContext";
 
 const PosterDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentPagePosters } = usePosters();
   const [poster, setPoster] = useState<Poster | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -30,6 +32,9 @@ const PosterDetail = () => {
   const [idNumber, setIdNumber] = useState<string>("");
   const [isVoteModalOpen, setIsVoteModalOpen] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
+
+  // Index del póster actual dentro de la lista filtrada para navegación
+  const currentIndex = currentPagePosters.findIndex((p) => p._id === id);
 
   useEffect(() => {
     const fetchPoster = async () => {
@@ -43,50 +48,43 @@ const PosterDetail = () => {
         setIsLoading(false);
       }
     };
-
     fetchPoster();
   }, [id]);
 
-  const handleVoteClick = () => {
-    setIsVoteModalOpen(true);
-  };
+  const handleVoteClick = () => setIsVoteModalOpen(true);
 
   const handleSearchMemberAndVote = async () => {
     if (!idNumber) {
       setVoteError("Por favor, ingresa un número de cédula.");
       return;
     }
-
     setIsVoting(true);
     setVoteError(null);
-
     try {
-      // Buscar usuario por cédula
       const memberResponse = await searchMembers({
         "properties.idNumber": idNumber,
       });
-      const member = memberResponse.data.items[0];
-
+      const member = memberResponse?.data?.items[0];
       if (!member) {
         setVoteError("No se encontró un usuario con esta cédula.");
         return;
       }
-
+      if (!member.memberActive) {
+        setVoteError("La persona no está habilitada para votar.");
+        return;
+      }
       const userId = member.userId;
-
-      // Buscar si el usuario ya ha votado por un póster
-      const posterResponse = await searchPosters({ voters: userId }) as { data: { items: Poster[] } };
-
+      const posterResponse = (await searchPosters({ voters: userId })) as {
+        data: { items: Poster[] };
+      };
       const votedPoster = posterResponse?.data?.items[0];
-
       if (votedPoster) {
         setVoteError(`Ya has votado por el póster: ${votedPoster.title}.`);
         return;
       }
-
-      // Aquí implementa la lógica para registrar el voto si el usuario no ha votado aún
       await handleVoteForPoster(userId);
       setIsVoteModalOpen(false);
+      setIdNumber("");
     } catch (error) {
       console.error("Error al buscar el usuario o registrar el voto:", error);
       setVoteError("Hubo un error al procesar tu voto. Intenta de nuevo.");
@@ -98,10 +96,9 @@ const PosterDetail = () => {
   const handleVoteForPoster = async (userId: string) => {
     try {
       if (!poster?._id) return;
-      const response = await voteForPoster(poster?._id, userId);
+      const response = await voteForPoster(poster._id, userId);
       if (response.status === "success") {
         alert("Voto registrado exitosamente.");
-        setIsVoteModalOpen(false);
       }
     } catch (error) {
       console.error("Error al votar por el póster:", error);
@@ -141,17 +138,8 @@ const PosterDetail = () => {
   }
 
   return (
-    <Container
-      size="xl"
-      style={{
-        paddingTop: "3rem",
-        paddingBottom: "3rem",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Encabezado del póster */}
-      <Box mb="xl" style={{ width: "100%", textAlign: "start" }}>
+    <Container size="md" style={{ paddingTop: "2rem", paddingBottom: "2rem" }}>
+      <Box mb="xl" style={{ textAlign: "start" }}>
         <Text size="xl" fw={700} mb="xs">
           {poster.title}
         </Text>
@@ -163,9 +151,8 @@ const PosterDetail = () => {
         </Text>
       </Box>
 
-      <Divider mb="xl" style={{ width: "100%" }} />
+      <Divider mb="xl" />
 
-      {/* Botón para votar por el póster */}
       <Button
         variant="light"
         color="blue"
@@ -176,47 +163,49 @@ const PosterDetail = () => {
         Votar por este póster
       </Button>
 
-      {/* Botón para ver en pantalla completa */}
-      <Button
-        variant="filled"
-        color="blue"
-        size="lg"
-        onClick={() => setIsFullScreen(true)}
-        mb="lg"
-      >
-        Ver en pantalla completa
-      </Button>
-
-      {/* Botón para regresar a la lista de pósters */}
-      <Button
-        variant="outline"
-        color="gray"
-        size="lg"
-        onClick={() => navigate("/")}
-        mb="lg"
-      >
-        Volver a la lista de pósters
-      </Button>
-
-      {/* Previsualización del PDF */}
       <Box
         style={{
           width: "100%",
-          height: "1300px",
+          height: "75vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
           border: "1px solid #eaeaea",
           borderRadius: "8px",
-          overflow: "hidden",
           marginBottom: "2rem",
         }}
       >
         <iframe
-          src={poster.urlPdf}
+          src={`https://drive.google.com/viewerng/viewer?embedded=true&url=${poster.urlPdf}`}
           title="Previsualización del PDF"
           style={{ width: "100%", height: "100%", border: "none" }}
         />
       </Box>
 
-      {/* Modal para ingresar cédula y votar */}
+      <Group justify="space-around">
+        <Button
+          size="md"
+          onClick={() =>
+            navigate(`/poster/${currentPagePosters[currentIndex - 1]?._id}`)
+          }
+          disabled={currentIndex <= 0}
+        >
+          Anterior
+        </Button>
+        <Button size="md" onClick={() => navigate("/")}>
+          Volver a la lista
+        </Button>
+        <Button
+          size="md"
+          onClick={() =>
+            navigate(`/poster/${currentPagePosters[currentIndex + 1]?._id}`)
+          }
+          disabled={currentIndex >= currentPagePosters.length - 1}
+        >
+          Siguiente
+        </Button>
+      </Group>
+
       <Modal
         opened={isVoteModalOpen}
         centered
@@ -232,7 +221,11 @@ const PosterDetail = () => {
           onChange={(e) => setIdNumber(e.currentTarget.value)}
         />
         <Group justify="flex-start" mt="md">
-          <Button size="lg" onClick={handleSearchMemberAndVote} loading={isVoting}>
+          <Button
+            size="lg"
+            onClick={handleSearchMemberAndVote}
+            loading={isVoting}
+          >
             Confirmar Voto
           </Button>
         </Group>
@@ -243,7 +236,6 @@ const PosterDetail = () => {
         )}
       </Modal>
 
-      {/* Modal para ver en pantalla completa */}
       <Modal
         opened={isFullScreen}
         onClose={() => setIsFullScreen(false)}
