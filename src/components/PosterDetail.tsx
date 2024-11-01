@@ -184,9 +184,9 @@ const PosterDetail = () => {
         }}
       >
         <iframe
-          src={poster.urlPdf}
+          src={`https://genpdfviewer.netlify.app/?file=${poster.urlPdf}`}
           title="Póster"
-          style={{ width: "100%", height: "100%", border: "none" }}
+          style={{ width: "100%", height: "110%", border: "none" }}
         />
       </Box>
 
