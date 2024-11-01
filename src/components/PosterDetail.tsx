@@ -2,15 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Container,
-  Text,
   Button,
   Loader,
   Modal,
-  Box,
-  Divider,
-  TextInput,
   Group,
+  TextInput,
   Notification,
+  Box,
 } from "@mantine/core";
 import {
   fetchPosterById,
@@ -117,7 +115,7 @@ const PosterDetail = () => {
         }}
       >
         <Loader size="lg" />
-        <Text ml="sm">Cargando póster...</Text>
+        <span>Cargando póster...</span>
       </Container>
     );
   }
@@ -132,58 +130,23 @@ const PosterDetail = () => {
           height: "100vh",
         }}
       >
-        <Text>No se encontró el póster.</Text>
+        <span>No se encontró el póster.</span>
       </Container>
     );
   }
 
   return (
     <Container size="md" style={{ paddingTop: "2rem", paddingBottom: "2rem" }}>
-      <Box mb="xl" style={{ textAlign: "start" }}>
-        <Text size="xl" fw={700} mb="xs">
-          {poster.title}
-        </Text>
-        <Text size="md" c="dimmed" mb="xs">
-          {poster.category} / {poster.topic}
-        </Text>
-        <Text size="md" c="dimmed">
-          Autor(es): {poster.authors.join(", ")}
-        </Text>
-      </Box>
-
-      <Divider mb="xl" />
-
-      <Button
-        variant="light"
-        color="blue"
-        size="lg"
-        mb="md"
-        onClick={handleVoteClick}
-      >
-        Votar por este póster
-      </Button>
-
-      <Box
-        style={{
-          width: "100%",
-          height: "75vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          border: "1px solid #eaeaea",
-          borderRadius: "8px",
-          marginBottom: "2rem",
-        }}
-      >
-        {/* <iframe
-          src={`https://drive.google.com/viewerng/viewer?embedded=true&url=${poster.urlPdf}`}
-          title="Previsualización del PDF"
-          style={{ width: "100%", height: "100%", border: "none" }}
-        /> */}
-        <iframe src={poster.urlPdf} title="Póster" style={{ width: "100%", height: "100%", border: "none" }} />
-      </Box>
-
-      <Group justify="space-around">
+      {/* Botones de navegación y votar */}
+      <Group justify="space-around" mb="md">
+        <Button
+          variant="light"
+          color="blue"
+          size="lg"
+          onClick={handleVoteClick}
+        >
+          Votar por este póster
+        </Button>
         <Button
           size="md"
           onClick={() =>
@@ -207,9 +170,29 @@ const PosterDetail = () => {
         </Button>
       </Group>
 
+      {/* Iframe de visualización del póster */}
+      <Box
+        style={{
+          width: "100%",
+          height: "75vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          border: "1px solid #eaeaea",
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        <iframe
+          src={poster.urlPdf}
+          title="Póster"
+          style={{ width: "100%", height: "100%", border: "none" }}
+        />
+      </Box>
+
+      {/* Modal para votar */}
       <Modal
         opened={isVoteModalOpen}
-        centered
         size="lg"
         onClose={() => setIsVoteModalOpen(false)}
         title="Votar por el póster"
@@ -232,11 +215,12 @@ const PosterDetail = () => {
         </Group>
         {voteError && (
           <Notification color="red" mt="md">
-            <Text size="lg">{voteError}</Text>
+            {voteError}
           </Notification>
         )}
       </Modal>
 
+      {/* Modal para pantalla completa */}
       <Modal
         opened={isFullScreen}
         onClose={() => setIsFullScreen(false)}
@@ -246,7 +230,7 @@ const PosterDetail = () => {
         <iframe
           src={poster.urlPdf}
           title="Póster en pantalla completa"
-          style={{ width: "100%", height: "1980px", border: "none" }}
+          style={{ width: "100%", height: "100%", border: "none" }}
         />
       </Modal>
     </Container>

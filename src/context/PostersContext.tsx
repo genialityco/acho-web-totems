@@ -76,16 +76,14 @@ export const PostersProvider: React.FC<{ children: React.ReactNode }> = ({
           },
           {}
         );
-        setTopics([
-          ...topics,
-          ...Object.keys(topicCounts)
-            .filter((topic) => !topics.some((t) => t.topic === topic))
-            .map((topic) => ({
-              topic,
-              count: topicCounts[topic],
-              color: determineColor(topic),
-            })),
-        ]);
+        
+        const newTopics = Object.keys(topicCounts).map((topic) => ({
+          topic,
+          count: topicCounts[topic],
+          color: determineColor(topic),
+        }));
+        
+        setTopics(newTopics);
 
         setCategories(
           [

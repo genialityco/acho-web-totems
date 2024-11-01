@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   TextInput,
   Card,
@@ -11,10 +12,12 @@ import {
   Box,
   Select,
   Badge,
+  ActionIcon,
 } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { usePosters } from "../context/PostersContext";
 import { Poster } from "../services/api/posterService";
+import { IconLock, IconLockAccessOff } from "@tabler/icons-react";
 
 export const PosterList = () => {
   const {
@@ -33,6 +36,8 @@ export const PosterList = () => {
     categories,
   } = usePosters();
 
+  const [isCategoryLocked, setIsCategoryLocked] = useState(false);
+
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
     setPage(1);
@@ -44,8 +49,14 @@ export const PosterList = () => {
   };
 
   const handleCategoryChange = (value: string | null) => {
-    setSelectedCategory(value);
-    setPage(1);
+    if (!isCategoryLocked) {
+      setSelectedCategory(value);
+      setPage(1);
+    }
+  };
+
+  const toggleCategoryLock = () => {
+    setIsCategoryLocked((prev) => !prev);
   };
 
   const renderPoster = (poster: Poster) => (
@@ -63,10 +74,10 @@ export const PosterList = () => {
     >
       <Stack m="xs">
         <Text fw={500}>{poster.title}</Text>
-        <Text size="sm" color="dimmed">
+        <Text size="sm" c="dimmed">
           {poster.category} {poster.topic ? `/ ${poster.topic}` : ""}
         </Text>
-        <Text size="sm" color="dimmed">
+        <Text size="sm" c="dimmed">
           Autor(es): {poster.authors.join(", ")}
         </Text>
       </Stack>
@@ -117,15 +128,23 @@ export const PosterList = () => {
         ))}
       </SimpleGrid>
 
-      <Select
-        placeholder="Filtrar por tema"
-        size="lg"
-        data={categories}
-        value={selectedCategory}
-        onChange={handleCategoryChange}
-        clearable
-        mb="md"
-      />
+      <Group justify="center">
+        <Select
+          placeholder="Filtrar por tema"
+          size="lg"
+          data={categories}
+          value={selectedCategory}
+          onChange={handleCategoryChange}
+          clearable
+          mb="md"
+          disabled={isCategoryLocked}
+          style={{ flexGrow: 1 }}
+        />
+
+        <ActionIcon onClick={toggleCategoryLock}>
+          {isCategoryLocked ? <IconLock /> : <IconLockAccessOff />}
+        </ActionIcon>
+      </Group>
 
       <Box
         style={{
