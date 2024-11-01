@@ -9,6 +9,7 @@ import {
   TextInput,
   Notification,
   Box,
+  Text,
 } from "@mantine/core";
 import {
   fetchPosterById,
@@ -136,7 +137,10 @@ const PosterDetail = () => {
   }
 
   return (
-    <Container size="md" style={{ paddingTop: "2rem", paddingBottom: "2rem" }}>
+    <Container fluid>
+      <Text c="dimmed" mb="md">
+        {poster.topic} / {poster.category}
+      </Text>
       {/* Botones de navegación y votar */}
       <Group justify="space-around" mb="md">
         <Button
@@ -178,7 +182,6 @@ const PosterDetail = () => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          border: "1px solid #eaeaea",
           borderRadius: "8px",
           overflow: "hidden",
         }}
@@ -186,7 +189,7 @@ const PosterDetail = () => {
         <iframe
           src={`https://genpdfviewer.netlify.app/?file=${poster.urlPdf}`}
           title="Póster"
-          style={{ width: "100%", height: "110%", border: "none" }}
+          style={{ width: "100%", height: "120%", border: "none" }}
         />
       </Box>
 
