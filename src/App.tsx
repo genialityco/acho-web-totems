@@ -5,6 +5,7 @@ import { theme } from "./theme";
 import HomePage from "./pages/HomePage";
 import PosterDetail from "./components/PosterDetail";
 import { PostersProvider } from "./context/PostersContext";
+import BulkUserUpload from "./components/BulkUserUpload";
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/poster/:id" element={<PosterDetail />} />
+                <Route path="/masive-users" element={<BulkUserUpload />} />
               </Routes>
             </Container>
           </Box>

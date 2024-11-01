@@ -138,7 +138,7 @@ const PosterDetail = () => {
 
   return (
     <Container fluid>
-      <Text c="dimmed" mb="md">
+      <Text c="dimmed" style={{marginTop: -15}}>
         {poster.topic} / {poster.category}
       </Text>
       {/* Botones de navegación y votar */}
