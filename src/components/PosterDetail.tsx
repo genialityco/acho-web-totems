@@ -19,6 +19,7 @@ import {
 } from "../services/api/posterService";
 import { searchMembers } from "../services/api/memberService";
 import { usePosters } from "../context/PostersContext";
+import './PosterDetail.css';
 
 const PosterDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -148,6 +149,7 @@ const PosterDetail = () => {
           color="blue"
           size="lg"
           onClick={handleVoteClick}
+          className="pulse-button"
         >
           Votar por este póster
         </Button>
