@@ -10,6 +10,7 @@ import {
   Notification,
   Box,
   Text,
+  Flex,
 } from "@mantine/core";
 import {
   fetchPosterById,
@@ -33,6 +34,7 @@ const PosterDetail = () => {
   const [voteError, setVoteError] = useState<string | null>(null);
   const [showQrCodes, setShowQrCodes] = useState(false); // Estado para mostrar los QR
   const [showModalSuccess, setShowModalSuccess] = useState(false); // Estado para mostrar el modal de éxito
+  const [showVotedInfo, setShowVotedInfo] = useState(false); // Estado para mostrar la información de voto
 
   const currentIndex = currentPagePosters.findIndex((p) => p._id === id);
 
@@ -86,6 +88,7 @@ const PosterDetail = () => {
       const votedPoster = posterResponse?.data?.items[0];
       if (votedPoster) {
         setVoteError(`Ya has votado por el póster: ${votedPoster.title}.`);
+        setShowVotedInfo(true);
         return;
       }
       await handleVoteForPoster(userId);
@@ -228,6 +231,38 @@ const PosterDetail = () => {
             {voteError}
           </Notification>
         )}
+        {showVotedInfo && (
+          <Flex direction="column" align="center" mt="lg">
+            <Text size="lg" ta="center" variant="h2" c="green">
+              ¡Ya has votado!
+            </Text>
+            <Text mt="md" ta="center">
+              ¡Gracias por tu participación!
+            </Text>
+            <Text mt="md" ta="center">
+              Puedes seguir viendo los posters desde la aplicación de la ACHO,
+              donde también encontrarás el programa del congreso, tus
+              certificado de asistencia y novedades de la asociación. Usa los
+              siguientes QR para instalarla.
+            </Text>
+            <Group justify="center" mt="md">
+              <img
+                src="https://ik.imagekit.io/6cx9tc1kx/qrios.jpeg"
+                alt="QR 1"
+                width={100}
+                height={100}
+                style={{ marginRight: "150px" }}
+              />
+              <img
+                src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg"
+                alt="QR 2"
+                width={100}
+                height={100}
+              />
+            </Group>
+            <Text>Si sigues teniendo dificultades comunicate con soporte.</Text>
+          </Flex>
+        )}
         {showQrCodes && (
           <Box mt="lg" style={{ textAlign: "center" }}>
             <Text>
@@ -258,15 +293,17 @@ const PosterDetail = () => {
         opened={showModalSuccess}
         onClose={() => setShowModalSuccess(false)}
       >
-        <Text size="lg" ta="center" variant="h2" c="green">
+        <Text size="lg" ta="center" variant="h1" c="green">
           ¡Voto registrado exitosamente!
         </Text>
         <Text mt="md" ta="center">
           ¡Gracias por tu participación!
         </Text>
-        <Text mt="md" ta="center">
-          Te invitamos a descargar la aplicación ACHO en la que encontrarás la
-          certificación del congreso.
+        <Text size="lg" variant="h1" mt="md" ta="center">
+          Puedes seguir viendo los posters desde la aplicación de la ACHO, donde
+          también encontrarás el programa del congreso, tus certificado de
+          asistencia y novedades de la asociación. Usa los siguientes QR para
+          instalarla.
         </Text>
         <Group justify="center" mt="md">
           <img
