@@ -32,6 +32,7 @@ const PosterDetail = () => {
   const [isVoteModalOpen, setIsVoteModalOpen] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [showQrCodes, setShowQrCodes] = useState(false); // Estado para mostrar los QR
+  const [showModalSuccess, setShowModalSuccess] = useState(false); // Estado para mostrar el modal de éxito
 
   const currentIndex = currentPagePosters.findIndex((p) => p._id === id);
 
@@ -103,7 +104,7 @@ const PosterDetail = () => {
       if (!poster?._id) return;
       const response = await voteForPoster(poster._id, userId);
       if (response.status === "success") {
-        alert("Voto registrado exitosamente.");
+        setShowModalSuccess(true);
       }
     } catch (error) {
       console.error("Error al votar por el póster:", error);
@@ -239,7 +240,7 @@ const PosterDetail = () => {
                 alt="QR 1"
                 width={100}
                 height={100}
-                style={{ marginRight: "40px" }}
+                style={{ marginRight: "150px" }}
               />
               <img
                 src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg"
@@ -251,6 +252,39 @@ const PosterDetail = () => {
             <Text>Si sigues teniendo dificultades comunicate con soporte.</Text>
           </Box>
         )}
+      </Modal>
+
+      <Modal
+        centered
+        opened={showModalSuccess}
+        onClose={() => setShowModalSuccess(false)}
+      >
+        <Text size="lg" ta="center" variant="h2" c="green">
+          ¡Voto registrado exitosamente!
+        </Text>
+        <Text mt="md" ta="center">
+          ¡Gracias por tu participación!
+        </Text>
+        <Text mt="md" ta="center">
+          Te invitamos a descargar la aplicación ACHO en la que encontrarás la
+          certificación del congreso.
+        </Text>
+        <Group justify="center" mt="md">
+          <img
+            src="https://ik.imagekit.io/6cx9tc1kx/qrios.jpeg"
+            alt="QR 1"
+            width={100}
+            height={100}
+            style={{ marginRight: "150px" }}
+          />
+          <img
+            src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg"
+            alt="QR 2"
+            width={100}
+            height={100}
+          />
+        </Group>
+        <Text>Si sigues teniendo dificultades comunicate con soporte.</Text>
       </Modal>
     </Container>
   );
