@@ -10,7 +10,6 @@ import {
   Notification,
   Box,
   Text,
-  Image,
 } from "@mantine/core";
 import { fetchPosterById, Poster, searchPosters, voteForPoster } from "../services/api/posterService";
 import { searchMembers } from "../services/api/memberService";
@@ -23,7 +22,6 @@ const PosterDetail = () => {
   const { currentPagePosters } = usePosters();
   const [poster, setPoster] = useState<Poster | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFullScreen, setIsFullScreen] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [idNumber, setIdNumber] = useState<string>("");
   const [isVoteModalOpen, setIsVoteModalOpen] = useState(false);
