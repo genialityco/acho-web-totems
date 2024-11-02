@@ -114,7 +114,8 @@ export const PosterList = () => {
                 selectedTopic === topic
                   ? `2px solid ${color}`
                   : "1px solid #ddd",
-              backgroundColor: selectedTopic === topic ? `${color}20` : "#fff",
+              backgroundColor: selectedTopic === topic ? color : "#fff",
+              color: selectedTopic === topic ? "#fff" : "inherit",
             }}
             onClick={() => handleTopicSelect(topic)}
           >
@@ -122,7 +123,11 @@ export const PosterList = () => {
               <Badge color={color} size="lg" radius="sm">
                 {count}
               </Badge>
-              <Text fw={500}>{topic}</Text>
+              <Text fw={500}>
+                {selectedTopic === topic
+                  ? `Estas viendo ${topic}`
+                  : `Ver ${topic}`}
+              </Text>
             </Group>
           </Card>
         ))}
