@@ -60,12 +60,12 @@ const PosterDetail = () => {
       });
       const member = memberResponse?.data?.items[0];
       if (!member) {
-        setVoteError("No se encontró un usuario con esta cédula. Registrate en la app o comunicate con soporte en punto");
+        setVoteError("No se encontró un usuario con esta cédula. Regístrate en la App o comunícate con soporte en punto.");
         setShowQrCodes(true); // Mostrar QR en caso de error
         return;
       }
       if (!member.memberActive) {
-        setVoteError("La persona no está habilitada para votar. Registrate en la app o comunicate con soporte en punto");
+        setVoteError("No se encontró un usuario con esta cédula. Regístrate en la App o comunícate con soporte en punto.");
         setShowQrCodes(true); // Mostrar QR en caso de error
         return;
       }
