@@ -241,7 +241,7 @@ const PosterDetail = () => {
             </Text>
             <Text mt="md" ta="center">
               Puedes seguir viendo los posters desde la aplicación de la ACHO,
-              donde también encontrarás el programa del congreso, tus
+              donde también encontrarás el programa del congreso, tu
               certificado de asistencia y novedades de la asociación. Usa los
               siguientes QR para instalarla.
             </Text>
@@ -301,7 +301,7 @@ const PosterDetail = () => {
         </Text>
         <Text size="lg" variant="h1" mt="md" ta="center">
           Puedes seguir viendo los posters desde la aplicación de la ACHO, donde
-          también encontrarás el programa del congreso, tus certificado de
+          también encontrarás el programa del congreso, tu certificado de
           asistencia y novedades de la asociación. Usa los siguientes QR para
           instalarla.
         </Text>
