@@ -118,12 +118,28 @@ export const PostersProvider: React.FC<{ children: React.ReactNode }> = ({
       return matchesSearchTerm && matchesTopic && matchesCategory;
     });
 
+    const filteredPostersSinTopic = allPosters.filter((poster) => {
+      const normalizedSearchTerm = normalizeText(searchTerm.toLowerCase());
+      const matchesSearchTerm = normalizedSearchTerm
+        ? normalizeText(poster.title.toLowerCase()).includes(
+            normalizedSearchTerm
+          ) ||
+          poster.authors.some((author) =>
+            normalizeText(author.toLowerCase()).includes(normalizedSearchTerm)
+          )
+        : true;
+      const matchesCategory = selectedCategory
+        ? poster.category === selectedCategory
+        : true;
+      return matchesSearchTerm && matchesCategory;
+    });
+
     setTotalPages(Math.ceil(filteredPosters.length / itemsPerPage));
     const startIndex = (page - 1) * itemsPerPage;
     setCurrentPagePosters(
       filteredPosters.slice(startIndex, startIndex + itemsPerPage)
     );
-    updateTopics(filteredPosters);
+    updateTopics(filteredPostersSinTopic);
   }, [searchTerm, selectedTopic, selectedCategory, page, allPosters]);
 
   return (

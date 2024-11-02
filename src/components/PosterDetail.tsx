@@ -255,7 +255,6 @@ const PosterDetail = () => {
       </Modal>
 
       <Modal
-        centered
         opened={showModalSuccess}
         onClose={() => setShowModalSuccess(false)}
       >
