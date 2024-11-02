@@ -60,12 +60,12 @@ const PosterDetail = () => {
       });
       const member = memberResponse?.data?.items[0];
       if (!member) {
-        setVoteError("No se encontró un usuario con esta cédula. Regístrate en la App o comunícate con soporte en punto.");
+        setVoteError("No se encontró un usuario con esta cédula. Regístrate en la App para poder votar.");
         setShowQrCodes(true); // Mostrar QR en caso de error
         return;
       }
       if (!member.memberActive) {
-        setVoteError("No se encontró un usuario con esta cédula. Regístrate en la App o comunícate con soporte en punto.");
+        setVoteError("No se encontró un usuario con esta cédula. Regístrate en la App para poder votar.");
         setShowQrCodes(true); // Mostrar QR en caso de error
         return;
       }
@@ -179,11 +179,12 @@ const PosterDetail = () => {
         )}
         {showQrCodes && (
           <Box mt="lg" style={{ textAlign: "center" }}>
-            <Text>Escanea cualquiera de los siguientes QR para descargar:</Text>
+            <Text>Escanea cualquiera de los siguientes códigos QR para descargar la aplicación de ACHO:</Text>
             <Group justify="center" mt="md">
               <img src="https://ik.imagekit.io/6cx9tc1kx/qrios.jpeg" alt="QR 1" width={100} height={100} style={{marginRight: "40px"}} />
               <img src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg" alt="QR 2" width={100} height={100} />
             </Group>
+            <Text>Si sigues teniendo dificultades comunicate con soporte.</Text>
           </Box>
         )}
       </Modal>
