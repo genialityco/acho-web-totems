@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import PosterDetail from "./components/PosterDetail";
 import { PostersProvider } from "./context/PostersContext";
 import BulkUserUpload from "./components/BulkUserUpload";
+import SpeakersList from "./pages/SpeakersList";
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/poster/:id" element={<PosterDetail />} />
                 <Route path="/masive-users" element={<BulkUserUpload />} />
+                <Route path="/speakers" element={<SpeakersList />} />
               </Routes>
             </Container>
           </Box>
