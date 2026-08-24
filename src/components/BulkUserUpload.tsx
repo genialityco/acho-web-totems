@@ -200,7 +200,7 @@ const BulkUserUpload = () => {
 
   // Variables fijas de ejemplo (muévelas a props/contexto si varían)
   const organizationId = "66f1d236ee78a23c67fada2a"; // Ajusta a tu caso real
-  const eventId = "68f2615e30c655652359c6ad"; // Ajusta a tu caso real
+  const eventId = "68f2958b30c655652359c9cd"; // Ajusta a tu caso real
 
   useEffect(() => {
     loadMembers();
