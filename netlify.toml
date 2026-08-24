@@ -1,0 +1,6 @@
+[build.environment]
+  # Firebase Web API keys are not secret (they identify the project client-side;
+  # real access control is enforced by Firebase Security Rules / key restrictions
+  # in Google Cloud Console). This whitelists the value so Netlify's secrets
+  # scanner stops false-positiving on it and failing the build.
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyC6QR5gKslC8JqrZTG8xJq4Kafdz0tnq6U"
