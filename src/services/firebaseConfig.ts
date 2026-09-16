@@ -1,26 +1,28 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, push, onValue, set, get } from "firebase/database";
-import { getAuth } from "firebase/auth"; // Importa getAuth en lugar de initializeAuth
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
-// Configuración de Firebase obtenida desde Firebase Console
+// Configuración del proyecto Firebase propio de Gen. Papers (ver .env.example).
 const firebaseConfig = {
-  apiKey: "AIzaSyC6QR5gKslC8JqrZTG8xJq4Kafdz0tnq6U",
-  authDomain: "global-auth-49737.firebaseapp.com",
-  databaseURL: "https://global-auth-49737-default-rtdb.firebaseio.com",
-  projectId: "global-auth-49737",
-  storageBucket: "global-auth-49737.appspot.com",
-  messagingSenderId: "818786178354",
-  appId: "1:818786178354:web:d3b43d220141ab4b55b32b",
-  measurementId: "G-3741K6QH0J",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Obtener la base de datos
-const db = getDatabase(app);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const functions = getFunctions(app);
 
-// Inicializar autenticación sin persistencia
-export const auth = getAuth(app); // Cambia initializeAuth por getAuth
-
-export { db, ref, push, onValue, set, get };
+// En desarrollo, apunta al Firebase Emulator Suite local (`firebase emulators:start`)
+// en vez del proyecto real cuando VITE_USE_FIREBASE_EMULATORS=true.
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+}
