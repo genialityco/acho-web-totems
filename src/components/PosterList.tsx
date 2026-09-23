@@ -15,12 +15,15 @@ import {
   ActionIcon,
 } from "@mantine/core";
 import { Link } from "react-router-dom";
-import { usePosters } from "../context/PostersContext";
-import { Poster } from "../services/api/posterService";
+import { useTranslation } from "react-i18next";
+import { usePosters } from "../context/usePosters";
+import { Paper } from "../services/firestore/paperService";
 import { IconLock, IconLockAccessOff } from "@tabler/icons-react";
 
 export const PosterList = () => {
+  const { t } = useTranslation();
   const {
+    eventSlug,
     currentPagePosters,
     searchTerm,
     setSearchTerm,
@@ -28,40 +31,41 @@ export const PosterList = () => {
     page,
     setPage,
     totalPages,
-    selectedTopic,
-    setSelectedTopic,
     selectedCategory,
     setSelectedCategory,
-    topics,
+    selectedTheme,
+    setSelectedTheme,
     categories,
+    themes,
+    getCategoryName,
   } = usePosters();
 
-  const [isCategoryLocked, setIsCategoryLocked] = useState(false);
+  const [isThemeLocked, setIsThemeLocked] = useState(false);
 
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
     setPage(1);
   };
 
-  const handleTopicSelect = (topic: string | null) => {
-    setSelectedTopic(topic === selectedTopic ? null : topic);
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId === selectedCategory ? null : categoryId);
     setPage(1);
   };
 
-  const handleCategoryChange = (value: string | null) => {
-    if (!isCategoryLocked) {
-      setSelectedCategory(value);
+  const handleThemeChange = (value: string | null) => {
+    if (!isThemeLocked) {
+      setSelectedTheme(value);
       setPage(1);
     }
   };
 
-  const toggleCategoryLock = () => {
-    setIsCategoryLocked((prev) => !prev);
+  const toggleThemeLock = () => {
+    setIsThemeLocked((prev) => !prev);
   };
 
-  const renderPoster = (poster: Poster) => (
+  const renderPoster = (poster: Paper) => (
     <Card
-      key={poster._id}
+      key={poster.id}
       shadow="sm"
       padding="lg"
       withBorder
@@ -75,15 +79,19 @@ export const PosterList = () => {
       <Stack m="xs">
         <Text fw={500}>{poster.title}</Text>
         <Text size="sm" c="dimmed">
-          {poster.category} {poster.topic ? `/ ${poster.topic}` : ""}
+          {[poster.theme, getCategoryName(poster.categoryId)].filter(Boolean).join(" / ")}
         </Text>
         <Text size="sm" c="dimmed">
-          Autor(es): {poster.authors.join(", ")}
+          {t("posterList.authorsLabel")} {poster.authors.join(", ")}
         </Text>
       </Stack>
       <Group justify="flex-end" mt="md">
-        <Button component={Link} to={`/poster/${poster._id}`} variant="outline">
-          Ver póster
+        <Button
+          component={Link}
+          to={`/${eventSlug}/paper/${poster.id}`}
+          variant="outline"
+        >
+          {t("posterList.viewPoster")}
         </Button>
       </Group>
     </Card>
@@ -92,62 +100,66 @@ export const PosterList = () => {
   return (
     <Container size="lg">
       <TextInput
-        placeholder="Buscar un póster..."
+        placeholder={t("posterList.searchPlaceholder")}
         size="lg"
         value={searchTerm}
         onChange={(e) => handleSearchChange(e.currentTarget.value)}
         mb="md"
       />
 
-      <Text fz="lg" fw={500} mb="xs">
-        Categorías
-      </Text>
-      <SimpleGrid cols={2} spacing="sm" mb="md">
-        {topics.map(({ topic, count, color }) => (
-          <Card
-            key={topic}
-            shadow="sm"
-            padding="lg"
-            style={{
-              cursor: "pointer",
-              border:
-                selectedTopic === topic
-                  ? `2px solid ${color}`
-                  : "1px solid #ddd",
-              backgroundColor: selectedTopic === topic ? color : "#fff",
-              color: selectedTopic === topic ? "#fff" : "inherit",
-            }}
-            onClick={() => handleTopicSelect(topic)}
-          >
-            <Group justify="flex-start">
-              <Badge color={color} size="lg" radius="sm">
-                {count}
-              </Badge>
-              <Text fw={500}>
-                {selectedTopic === topic
-                  ? `Estas viendo ${topic}`
-                  : `Ver ${topic}`}
-              </Text>
-            </Group>
-          </Card>
-        ))}
-      </SimpleGrid>
+      {categories.length > 0 && (
+        <>
+          <Text fz="lg" fw={500} mb="xs">
+            {t("posterList.categoriesHeading")}
+          </Text>
+          <SimpleGrid cols={2} spacing="sm" mb="md">
+            {categories.map(({ id, name, count, color }) => (
+              <Card
+                key={id}
+                shadow="sm"
+                padding="lg"
+                style={{
+                  cursor: "pointer",
+                  border:
+                    selectedCategory === id
+                      ? `2px solid ${color}`
+                      : "1px solid #ddd",
+                  backgroundColor: selectedCategory === id ? color : "#fff",
+                  color: selectedCategory === id ? "#fff" : "inherit",
+                }}
+                onClick={() => handleCategorySelect(id)}
+              >
+                <Group justify="flex-start">
+                  <Badge color={color} size="lg" radius="sm">
+                    {count}
+                  </Badge>
+                  <Text fw={500}>
+                    {selectedCategory === id
+                      ? t("posterList.categoryViewing", { name })
+                      : t("posterList.categoryView", { name })}
+                  </Text>
+                </Group>
+              </Card>
+            ))}
+          </SimpleGrid>
+        </>
+      )}
 
       <Group justify="center">
         <Select
-          placeholder="Filtrar por tema"
+          placeholder={t("posterList.themeFilterPlaceholder")}
           size="lg"
-          data={categories}
-          value={selectedCategory}
-          onChange={handleCategoryChange}
+          data={themes}
+          value={selectedTheme}
+          onChange={handleThemeChange}
           clearable
           mb="md"
-          disabled={isCategoryLocked}
+          disabled={isThemeLocked}
           style={{ flexGrow: 1 }}
         />
 
-        <ActionIcon onClick={toggleCategoryLock}>
-          {isCategoryLocked ? <IconLock /> : <IconLockAccessOff />}
+        <ActionIcon onClick={toggleThemeLock}>
+          {isThemeLocked ? <IconLock /> : <IconLockAccessOff />}
         </ActionIcon>
       </Group>
 
@@ -161,7 +173,7 @@ export const PosterList = () => {
         {loading ? (
           <Loader size="lg" />
         ) : currentPagePosters.length === 0 ? (
-          <Text>No se encontraron pósters.</Text>
+          <Text>{t("posterList.noResults")}</Text>
         ) : (
           <SimpleGrid cols={{ base: 1, xs: 1, md: 2, lg: 2 }} spacing="lg">
             {currentPagePosters.map((poster) => renderPoster(poster))}
@@ -176,17 +188,15 @@ export const PosterList = () => {
             onClick={() => setPage(page - 1)}
             disabled={page === 1 || loading}
           >
-            Anterior
+            {t("common.previous")}
           </Button>
-          <Text fz="h3">
-            Página {page} de {totalPages}
-          </Text>
+          <Text fz="h3">{t("posterList.pageOf", { page, totalPages })}</Text>
           <Button
             size="md"
             onClick={() => setPage(page + 1)}
             disabled={page === totalPages || loading}
           >
-            Siguiente
+            {t("common.next")}
           </Button>
         </Group>
       )}

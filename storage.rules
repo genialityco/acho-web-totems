@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Custom claim (no una consulta cross-service a Firestore) para evitar depender de esa
+    // integración en el camino de escritura; grantAdmin() la asigna junto con admins/{uid}.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /events/{eventSlug}/papers/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 30 * 1024 * 1024 &&
+        request.resource.contentType == 'application/pdf';
+      allow delete: if isAdmin();
+    }
+  }
+}

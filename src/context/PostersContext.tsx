@@ -1,175 +1,143 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { searchPosters, Poster } from "../services/api/posterService";
+import React, { useEffect, useMemo, useState } from "react";
+import { subscribeEvent, EventInfo } from "../services/firestore/eventService";
+import { subscribeCategories, Category } from "../services/firestore/categoryService";
+import { subscribePapers, Paper } from "../services/firestore/paperService";
+import { normalizeText } from "../utils/text";
+import { PostersContext, EventStatus } from "./usePosters";
 
-type PostersContextType = {
-  posters: Poster[];
-  currentPagePosters: Poster[];
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  loading: boolean;
-  page: number;
-  setPage: (page: number) => void;
-  totalPages: number;
-  selectedTopic: string | null;
-  setSelectedTopic: (topic: string | null) => void;
-  selectedCategory: string | null;
-  setSelectedCategory: (category: string | null) => void;
-  topics: { topic: string; count: number; color: string }[];
-  categories: string[];
-};
+const ITEMS_PER_PAGE = 10;
 
-const PostersContext = createContext<PostersContextType | undefined>(undefined);
+export const PostersProvider: React.FC<{
+  eventSlug: string;
+  children: React.ReactNode;
+}> = ({ eventSlug, children }) => {
+  const [event, setEvent] = useState<EventInfo | null>(null);
+  const [eventLoaded, setEventLoaded] = useState(false);
+  const [posters, setPosters] = useState<Paper[]>([]);
+  const [postersLoaded, setPostersLoaded] = useState(false);
+  const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-export const PostersProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [allPosters, setAllPosters] = useState<Poster[]>([]);
-  const [currentPagePosters, setCurrentPagePosters] = useState<Poster[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const itemsPerPage = 10;
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [topics, setTopics] = useState<
-    { topic: string; count: number; color: string }[]
-  >([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
-  // Carga inicial de todos los pósters
-  const fetchAllPosters = async () => {
-    setLoading(true);
-    try {
-      const response = (await searchPosters({ page: 1, limit: 300 })) as {
-        status: string;
-        data: { items: Poster[] };
-      };
-      if (response.status === "success") {
-        setAllPosters(response.data.items);
-        setTotalPages(Math.ceil(response.data.items.length / itemsPerPage));
-        updateTopics(response.data.items);
-        setCategories(
-          Array.from(
-            new Set(response.data.items.map((poster) => poster.category))
-          ).filter(Boolean)
-        );
-      }
-    } catch (error) {
-      setAllPosters([]);
-      setTotalPages(1);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateTopics = (posters: Poster[]) => {
-    const topicCounts = posters.reduce(
-      (acc: { [key: string]: number }, poster) => {
-        if (poster.topic) {
-          acc[poster.topic] = (acc[poster.topic] || 0) + 1;
-        }
-        return acc;
-      },
-      {}
-    );
-
-    const baseTopics = [
-      { topic: "Categoría Especial", color: "green" },
-      { topic: "Estudios Analíticos", color: "purple" },
-      { topic: "Estudios Descriptivos", color: "blue" },
-      { topic: "Reporte de Casos", color: "red" },
+  useEffect(() => {
+    const fail = (error: Error) => {
+      console.error("Error al cargar el evento:", error);
+      setLoadFailed(true);
+    };
+    const unsubscribers = [
+      subscribeEvent(
+        eventSlug,
+        (info) => {
+          setEvent(info);
+          setEventLoaded(true);
+        },
+        fail
+      ),
+      subscribePapers(
+        eventSlug,
+        (papers) => {
+          setPosters(papers);
+          setPostersLoaded(true);
+        },
+        fail
+      ),
+      subscribeCategories(
+        eventSlug,
+        (list) => {
+          setCategoryList(list);
+          setCategoriesLoaded(true);
+        },
+        fail
+      ),
     ];
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [eventSlug]);
 
-    const newTopics = baseTopics.map(({ topic, color }) => ({
-      topic,
-      count: topicCounts[topic] || 0,
-      color,
-    }));
-    setTopics(newTopics);
-  };
+  const eventStatus: EventStatus = loadFailed
+    ? "error"
+    : !eventLoaded
+    ? "loading"
+    : event
+    ? "ready"
+    : "not-found";
+  const loading = eventStatus === "loading" || !postersLoaded || !categoriesLoaded;
 
-  useEffect(() => {
-    fetchAllPosters();
-  }, []);
+  const { filteredPosters, categoryCounts } = useMemo(() => {
+    const term = normalizeText(searchTerm);
+    const matches = (paper: Paper, ignoreCategory: boolean) => {
+      const matchesSearch =
+        !term ||
+        normalizeText(paper.title).includes(term) ||
+        paper.authors.some((author) => normalizeText(author).includes(term));
+      const matchesCategory =
+        ignoreCategory || !selectedCategory || paper.categoryId === selectedCategory;
+      const matchesTheme = !selectedTheme || paper.theme === selectedTheme;
+      return matchesSearch && matchesCategory && matchesTheme;
+    };
 
-  // Normalización para remover tildes
-  const normalizeText = (text: string) =>
-    text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // Filtrado en el frontend según el término de búsqueda y filtros
-  useEffect(() => {
-    const filteredPosters = allPosters.filter((poster) => {
-      const normalizedSearchTerm = normalizeText(searchTerm.toLowerCase());
-      const matchesSearchTerm = normalizedSearchTerm
-        ? normalizeText(poster.title.toLowerCase()).includes(
-            normalizedSearchTerm
-          ) ||
-          poster.authors.some((author) =>
-            normalizeText(author.toLowerCase()).includes(normalizedSearchTerm)
-          )
-        : true;
-      const matchesTopic = selectedTopic
-        ? poster.topic === selectedTopic
-        : true;
-      const matchesCategory = selectedCategory
-        ? poster.category === selectedCategory
-        : true;
-      return matchesSearchTerm && matchesTopic && matchesCategory;
+    const counts = new Map<string, number>();
+    posters.forEach((paper) => {
+      if (paper.categoryId && matches(paper, true)) {
+        counts.set(paper.categoryId, (counts.get(paper.categoryId) ?? 0) + 1);
+      }
     });
 
-    const filteredPostersSinTopic = allPosters.filter((poster) => {
-      const normalizedSearchTerm = normalizeText(searchTerm.toLowerCase());
-      const matchesSearchTerm = normalizedSearchTerm
-        ? normalizeText(poster.title.toLowerCase()).includes(
-            normalizedSearchTerm
-          ) ||
-          poster.authors.some((author) =>
-            normalizeText(author.toLowerCase()).includes(normalizedSearchTerm)
-          )
-        : true;
-      const matchesCategory = selectedCategory
-        ? poster.category === selectedCategory
-        : true;
-      return matchesSearchTerm && matchesCategory;
-    });
+    return {
+      filteredPosters: posters.filter((paper) => matches(paper, false)),
+      categoryCounts: counts,
+    };
+  }, [posters, searchTerm, selectedCategory, selectedTheme]);
 
-    setTotalPages(Math.ceil(filteredPosters.length / itemsPerPage));
-    const startIndex = (page - 1) * itemsPerPage;
-    setCurrentPagePosters(
-      filteredPosters.slice(startIndex, startIndex + itemsPerPage)
-    );
-    updateTopics(filteredPostersSinTopic);
-  }, [searchTerm, selectedTopic, selectedCategory, page, allPosters]);
+  const categories = useMemo(
+    () => categoryList.map((c) => ({ ...c, count: categoryCounts.get(c.id) ?? 0 })),
+    [categoryList, categoryCounts]
+  );
+
+  const themes = useMemo(
+    () =>
+      Array.from(new Set(posters.map((paper) => paper.theme).filter((t): t is string => !!t))).sort(
+        (a, b) => a.localeCompare(b, "es")
+      ),
+    [posters]
+  );
+
+  const getCategoryName = (categoryId: string | null) =>
+    categoryList.find((c) => c.id === categoryId)?.name ?? "";
+
+  const totalPages = Math.max(1, Math.ceil(filteredPosters.length / ITEMS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentPagePosters = filteredPosters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <PostersContext.Provider
       value={{
-        posters: allPosters,
+        eventSlug,
+        event,
+        eventStatus,
+        posters,
         currentPagePosters,
         searchTerm,
         setSearchTerm,
         loading,
-        page,
+        page: currentPage,
         setPage,
         totalPages,
-        selectedTopic,
-        setSelectedTopic,
         selectedCategory,
         setSelectedCategory,
-        topics,
+        selectedTheme,
+        setSelectedTheme,
         categories,
+        themes,
+        getCategoryName,
       }}
     >
       {children}
     </PostersContext.Provider>
   );
-};
-
-export const usePosters = () => {
-  const context = useContext(PostersContext);
-  if (context === undefined) {
-    throw new Error("usePosters must be used within a PostersProvider");
-  }
-  return context;
 };

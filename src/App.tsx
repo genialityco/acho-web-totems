@@ -1,57 +1,51 @@
 import "@mantine/core/styles.css";
-import { MantineProvider, Container, Box, Image } from "@mantine/core";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MantineProvider } from "@mantine/core";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { theme } from "./theme";
 import HomePage from "./pages/HomePage";
 import PosterDetail from "./components/PosterDetail";
-import { PostersProvider } from "./context/PostersContext";
-import BulkUserUpload from "./components/BulkUserUpload";
-import SpeakersList from "./pages/SpeakersList";
+import EventLayout from "./pages/EventLayout";
+import NotFoundPage from "./pages/NotFoundPage";
+import AdminRoot from "./pages/admin/AdminRoot";
+import AdminLogin from "./pages/admin/AdminLogin";
+import ProtectedAdminRoute from "./pages/admin/ProtectedAdminRoute";
+import AdminEventsPage from "./pages/admin/AdminEventsPage";
+import AdminEventLayout from "./pages/admin/AdminEventLayout";
+import AdminCategories from "./pages/admin/AdminCategories";
+import AdminPapers from "./pages/admin/AdminPapers";
+import AdminVoters from "./pages/admin/AdminVoters";
+import AdminResults from "./pages/admin/AdminResults";
+import PapersBulkUpload from "./components/admin/PapersBulkUpload";
+import VotersBulkUpload from "./components/admin/VotersBulkUpload";
 
 export default function App() {
   return (
     <MantineProvider theme={theme}>
-      <PostersProvider>
-        <BrowserRouter>
-          <Box>
-            <Box
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "0.5rem 1rem",
-                borderBottom: "1px solid #eaeaea",
-                backgroundColor: "#f8f9fa",
-              }}
-            >
-              <Box
-                style={{
-                  width: "100%",
-                  height: 80,
-                  marginBlock: "10px",
-                  overflow: "hidden",
-                }}
-              >
-                <Image
-                  src="https://ik.imagekit.io/6cx9tc1kx/Imagenes%20App%20Prueba/LOGO_ACHO.png?updatedAt=1726756148659"
-                  alt="Logo"
-                  fit="contain"
-                  height={80}
-                />
-              </Box>
-            </Box>
-
-            {/* Contenedor con padding */}
-            <Container fluid mt="md">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/poster/:id" element={<PosterDetail />} />
-                <Route path="/masive-users" element={<BulkUserUpload />} />
-                <Route path="/speakers" element={<SpeakersList />} />
-              </Routes>
-            </Container>
-          </Box>
-        </BrowserRouter>
-      </PostersProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/admin" element={<AdminRoot />}>
+            <Route path="login" element={<AdminLogin />} />
+            <Route element={<ProtectedAdminRoute />}>
+              <Route index element={<AdminEventsPage />} />
+              <Route path=":eventSlug" element={<AdminEventLayout />}>
+                <Route index element={<Navigate to="categories" replace />} />
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="papers" element={<AdminPapers />} />
+                <Route path="papers/bulk-upload" element={<PapersBulkUpload />} />
+                <Route path="voters" element={<AdminVoters />} />
+                <Route path="voters/bulk-upload" element={<VotersBulkUpload />} />
+                <Route path="results" element={<AdminResults />} />
+              </Route>
+            </Route>
+          </Route>
+          <Route path="/:eventSlug" element={<EventLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="paper/:id" element={<PosterDetail />} />
+          </Route>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
     </MantineProvider>
   );
 }

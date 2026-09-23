@@ -95,10 +95,15 @@ export const grantAdmin = onCall(async (request) => {
     throw new HttpsError("not-found", "No existe una cuenta con ese email.");
   }
 
-  await db.doc(`admins/${user.uid}`).set({
-    email,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // El doc admins/{uid} respalda las reglas de Firestore y el panel; el custom claim
+  // respalda las reglas de Storage (que no dependen de una consulta cross-service a Firestore).
+  await Promise.all([
+    db.doc(`admins/${user.uid}`).set({
+      email,
+      createdAt: FieldValue.serverTimestamp(),
+    }),
+    getAuth().setCustomUserClaims(user.uid, { ...user.customClaims, admin: true }),
+  ]);
   return { ok: true, uid: user.uid };
 });
 

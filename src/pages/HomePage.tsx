@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { PosterList } from "../components/PosterList";
 import { Button } from "@mantine/core";
+import { usePosters } from "../context/usePosters";
 
 const HomePage = () => {
+  const { event } = usePosters();
   const [showScreensaver, setShowScreensaver] = useState(false);
 
   const handleContainerClick = () => {
@@ -10,7 +12,19 @@ const HomePage = () => {
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        ...(event?.backgroundUrl && {
+          backgroundImage: `url(${event.backgroundUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+        }),
+      }}
+    >
       <Button
         style={{ position: "fixed", top: 10, left: 10, zIndex: 10, opacity: 0 }}
         onClick={() => setShowScreensaver(!showScreensaver)}
