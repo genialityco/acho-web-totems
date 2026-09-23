@@ -16,5 +16,21 @@ service firebase.storage {
         request.resource.contentType == 'application/pdf';
       allow delete: if isAdmin();
     }
+
+    match /events/{eventSlug}/images/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
+    }
+
+    match /events/{eventSlug}/screensaver/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 50 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+      allow delete: if isAdmin();
+    }
   }
 }

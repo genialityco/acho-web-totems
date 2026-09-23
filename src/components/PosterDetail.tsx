@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Container,
@@ -34,6 +34,33 @@ const PosterDetail = () => {
 
   const currentIndex = currentPagePosters.findIndex((p) => p.id === id);
   const votingClosed = event?.votingOpen === false;
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // El visor de PDF es un iframe de otro origen: la actividad del mouse/teclado dentro de
+  // él no llega a este window, así que el detector de inactividad del protector de pantalla
+  // (que escucha en window) no se entera. Mientras el foco quede en el iframe, simulamos
+  // actividad cada 5s para que alguien leyendo un poster no sea interrumpido a mitad de lectura.
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const handleBlur = () => {
+      interval = setInterval(() => {
+        if (document.activeElement === iframeRef.current) {
+          window.dispatchEvent(new Event("mousemove"));
+        }
+      }, 5000);
+    };
+    const handleFocus = () => {
+      if (interval) clearInterval(interval);
+    };
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      if (interval) clearInterval(interval);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   const handleVoteClick = () => setIsVoteModalOpen(true);
 
@@ -159,7 +186,8 @@ const PosterDetail = () => {
         }}
       >
         <iframe
-          src={`https://genpdfviewer.netlify.app/?file=${poster.urlPdf}`}
+          ref={iframeRef}
+          src={`https://genpdfviewer.netlify.app/?file=${encodeURIComponent(poster.urlPdf)}`}
           title={t("posterDetail.posterIframeTitle")}
           style={{ width: "100%", height: "100%", border: "none" }}
         />

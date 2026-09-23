@@ -7,9 +7,12 @@ import {
   Button,
   Center,
   Code,
+  FileInput,
   Group,
+  Image,
   Loader,
   Modal,
+  Progress,
   Stack,
   Switch,
   Tabs,
@@ -18,14 +21,66 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
-import { IconArrowLeft, IconExternalLink, IconPencil } from "@tabler/icons-react";
+import { IconArrowLeft, IconExternalLink, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react";
 import { AdminEventProvider } from "../../context/AdminEventContext";
 import { useAdminEvent } from "../../context/useAdminEvent";
 import { EventInfo, updateEvent } from "../../services/firestore/eventService";
 import { errorMessage } from "../../services/firestore/batch";
-import { isHttpUrl } from "../../utils/text";
+import { deleteEventImage, MAX_EVENT_IMAGE_BYTES, uploadEventImage } from "../../services/storageService";
 
-type EventSettings = Pick<EventInfo, "name" | "bannerUrl" | "backgroundUrl">;
+function EventImageField({
+  label,
+  description,
+  currentUrl,
+  file,
+  onFileChange,
+  removed,
+  onRemove,
+  progress,
+  disabled,
+}: {
+  label: string;
+  description: string;
+  currentUrl: string | null;
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+  removed: boolean;
+  onRemove: () => void;
+  progress: number | null;
+  disabled: boolean;
+}) {
+  return (
+    <Stack gap={4}>
+      <FileInput
+        label={label}
+        description={description}
+        placeholder="Seleccionar imagen..."
+        accept="image/*"
+        leftSection={<IconPhoto size={16} />}
+        value={file}
+        onChange={onFileChange}
+        clearable
+        disabled={disabled}
+      />
+      {currentUrl && !removed && (
+        <Text size="xs" c="dimmed">
+          Deja vacío para conservar la imagen actual.
+        </Text>
+      )}
+      {currentUrl && !file && !removed && (
+        <Group gap="xs">
+          <Image src={currentUrl} h={50} w="auto" fit="contain" radius="sm" />
+          <Tooltip label="Quitar imagen">
+            <ActionIcon variant="subtle" color="red" aria-label={`Quitar ${label.toLowerCase()}`} onClick={onRemove}>
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      )}
+      {progress !== null && <Progress value={progress} animated />}
+    </Stack>
+  );
+}
 
 function EditEventModal({
   event,
@@ -35,52 +90,96 @@ function EditEventModal({
   onClose: () => void;
 }) {
   const [name, setName] = useState(event.name);
-  const [bannerUrl, setBannerUrl] = useState(event.bannerUrl ?? "");
-  const [backgroundUrl, setBackgroundUrl] = useState(event.backgroundUrl ?? "");
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [removeBanner, setRemoveBanner] = useState(false);
+  const [bannerProgress, setBannerProgress] = useState<number | null>(null);
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+  const [removeBackground, setRemoveBackground] = useState(false);
+  const [backgroundProgress, setBackgroundProgress] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!name.trim()) return setError("El nombre es obligatorio.");
-    if (bannerUrl.trim() && !isHttpUrl(bannerUrl.trim())) {
-      return setError("La URL del banner debe empezar por http:// o https://");
+    if (bannerFile && bannerFile.size > MAX_EVENT_IMAGE_BYTES) {
+      return setError("La imagen del banner no puede superar los 5 MB.");
     }
-    if (backgroundUrl.trim() && !isHttpUrl(backgroundUrl.trim())) {
-      return setError("La URL del fondo debe empezar por http:// o https://");
+    if (backgroundFile && backgroundFile.size > MAX_EVENT_IMAGE_BYTES) {
+      return setError("La imagen de fondo no puede superar los 5 MB.");
     }
+
     setSaving(true);
     setError(null);
     try {
-      const changes: Partial<EventSettings> = {
-        name: name.trim(),
-        bannerUrl: bannerUrl.trim() || null,
-        backgroundUrl: backgroundUrl.trim() || null,
-      };
-      await updateEvent(event.slug, changes);
+      const previousBannerUrl = event.bannerUrl;
+      const previousBackgroundUrl = event.backgroundUrl;
+      let bannerUrl = previousBannerUrl;
+      let backgroundUrl = previousBackgroundUrl;
+
+      if (bannerFile) {
+        setBannerProgress(0);
+        bannerUrl = await uploadEventImage(event.slug, "banner", bannerFile, setBannerProgress).promise;
+      } else if (removeBanner) {
+        bannerUrl = null;
+      }
+
+      if (backgroundFile) {
+        setBackgroundProgress(0);
+        backgroundUrl = await uploadEventImage(event.slug, "background", backgroundFile, setBackgroundProgress).promise;
+      } else if (removeBackground) {
+        backgroundUrl = null;
+      }
+
+      await updateEvent(event.slug, { name: name.trim(), bannerUrl, backgroundUrl });
+
+      if (previousBannerUrl && previousBannerUrl !== bannerUrl) {
+        // El evento ya quedó guardado con la imagen nueva (o sin imagen); la anterior es basura en Storage.
+        deleteEventImage(previousBannerUrl).catch((err) => console.error("No se pudo borrar el banner anterior:", err));
+      }
+      if (previousBackgroundUrl && previousBackgroundUrl !== backgroundUrl) {
+        deleteEventImage(previousBackgroundUrl).catch((err) => console.error("No se pudo borrar el fondo anterior:", err));
+      }
+
       onClose();
     } catch (e) {
       setError(errorMessage(e));
       setSaving(false);
+      setBannerProgress(null);
+      setBackgroundProgress(null);
     }
   };
 
   return (
-    <Modal opened onClose={onClose} title="Editar evento" centered>
+    <Modal opened onClose={onClose} title="Editar evento" centered closeOnClickOutside={!saving} withCloseButton={!saving}>
       <Stack>
         <TextInput label="Nombre" value={name} onChange={(e) => setName(e.currentTarget.value)} data-autofocus />
-        <TextInput
+        <EventImageField
           label="Imagen del banner"
-          description="Se muestra en la cabecera del sitio público. Vacío = logo de ACHO por defecto."
-          placeholder="https://..."
-          value={bannerUrl}
-          onChange={(e) => setBannerUrl(e.currentTarget.value)}
+          description="Cabecera del sitio público: ocupa el 100% del ancho y su alto se ajusta entre 80 y 200px según la pantalla. Tamaño ideal: 2000×200 px (horizontal, relación ~10:1) para que no se recorte en alto en desktop. Máx. 5 MB. Vacío = logo de ACHO por defecto."
+          currentUrl={event.bannerUrl}
+          file={bannerFile}
+          onFileChange={(f) => {
+            setBannerFile(f);
+            if (f) setRemoveBanner(false);
+          }}
+          removed={removeBanner}
+          onRemove={() => setRemoveBanner(true)}
+          progress={bannerProgress}
+          disabled={saving}
         />
-        <TextInput
-          label="Imagen de fondo del landing"
-          description="Fondo de la página principal del evento (donde se listan los papers). Vacío = sin fondo."
-          placeholder="https://..."
-          value={backgroundUrl}
-          onChange={(e) => setBackgroundUrl(e.currentTarget.value)}
+        <EventImageField
+          label="Imagen de fondo"
+          description="Fondo de todo el sitio público del evento (cabecera y contenido), cubre la pantalla completa. Tamaño ideal: 1920×1080 px o más (horizontal). Máx. 5 MB. Vacío = sin fondo."
+          currentUrl={event.backgroundUrl}
+          file={backgroundFile}
+          onFileChange={(f) => {
+            setBackgroundFile(f);
+            if (f) setRemoveBackground(false);
+          }}
+          removed={removeBackground}
+          onRemove={() => setRemoveBackground(true)}
+          progress={backgroundProgress}
+          disabled={saving}
         />
         {error && <Alert color="red">{error}</Alert>}
         <Group justify="flex-end">
@@ -101,6 +200,7 @@ const TABS = [
   { value: "papers", label: "Papers" },
   { value: "voters", label: "Votantes" },
   { value: "results", label: "Resultados" },
+  { value: "screensaver", label: "Protector de pantalla" },
 ];
 
 function EventFrame() {

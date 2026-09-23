@@ -4,6 +4,7 @@ import type { Category } from "../services/firestore/categoryService";
 import type { Paper } from "../services/firestore/paperService";
 import type { Voter } from "../services/firestore/voterService";
 import type { VoteRecord } from "../services/firestore/voteService";
+import type { ScreensaverItem } from "../services/firestore/screensaverService";
 
 export type AdminEventStatus = "loading" | "ready" | "not-found" | "error";
 
@@ -15,6 +16,7 @@ export type AdminEventContextType = {
   papers: Paper[];
   voters: Voter[];
   votes: VoteRecord[];
+  screensaverItems: ScreensaverItem[];
 };
 
 export const AdminEventContext = createContext<AdminEventContextType | undefined>(undefined);

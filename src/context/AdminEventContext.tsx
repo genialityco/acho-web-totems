@@ -4,6 +4,7 @@ import { subscribeCategories, Category } from "../services/firestore/categorySer
 import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeVoters, Voter } from "../services/firestore/voterService";
 import { subscribeVotes, VoteRecord } from "../services/firestore/voteService";
+import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
 import { AdminEventContext, AdminEventStatus } from "./useAdminEvent";
 
 export const AdminEventProvider: React.FC<{
@@ -15,12 +16,14 @@ export const AdminEventProvider: React.FC<{
   const [papers, setPapers] = useState<Paper[]>([]);
   const [voters, setVoters] = useState<Voter[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
+  const [screensaverItems, setScreensaverItems] = useState<ScreensaverItem[]>([]);
   const [loaded, setLoaded] = useState({
     event: false,
     categories: false,
     papers: false,
     voters: false,
     votes: false,
+    screensaverItems: false,
   });
   const [failed, setFailed] = useState(false);
 
@@ -37,6 +40,7 @@ export const AdminEventProvider: React.FC<{
       subscribePapers(eventSlug, (list) => { setPapers(list); markLoaded("papers"); }, fail),
       subscribeVoters(eventSlug, (list) => { setVoters(list); markLoaded("voters"); }, fail),
       subscribeVotes(eventSlug, (list) => { setVotes(list); markLoaded("votes"); }, fail),
+      subscribeScreensaverItems(eventSlug, (list) => { setScreensaverItems(list); markLoaded("screensaverItems"); }, fail),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [eventSlug]);
@@ -51,7 +55,7 @@ export const AdminEventProvider: React.FC<{
 
   return (
     <AdminEventContext.Provider
-      value={{ eventSlug, status, event, categories, papers, voters, votes }}
+      value={{ eventSlug, status, event, categories, papers, voters, votes, screensaverItems }}
     >
       {children}
     </AdminEventContext.Provider>

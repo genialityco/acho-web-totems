@@ -2,12 +2,13 @@ import { Center, Loader, Text } from "@mantine/core";
 import { Outlet, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PublicShell from "../components/PublicShell";
+import ScreensaverOverlay from "../components/ScreensaverOverlay";
 import { PostersProvider } from "../context/PostersContext";
 import { usePosters } from "../context/usePosters";
 
 function EventGate() {
   const { t } = useTranslation();
-  const { eventStatus, event } = usePosters();
+  const { eventStatus, event, screensaverItems } = usePosters();
 
   let content;
   if (eventStatus === "loading") {
@@ -36,7 +37,20 @@ function EventGate() {
     content = <Outlet />;
   }
 
-  return <PublicShell bannerUrl={event?.bannerUrl}>{content}</PublicShell>;
+  return (
+    <>
+      <PublicShell bannerUrl={event?.bannerUrl} backgroundUrl={event?.backgroundUrl}>
+        {content}
+      </PublicShell>
+      {eventStatus === "ready" && event?.screensaverEnabled && screensaverItems.length > 0 && (
+        <ScreensaverOverlay
+          items={screensaverItems}
+          idleSeconds={event.screensaverIdleSeconds}
+          photoDurationSeconds={event.screensaverPhotoDurationSeconds}
+        />
+      )}
+    </>
+  );
 }
 
 export default function EventLayout() {

@@ -7,34 +7,43 @@ const DEFAULT_BANNER_URL =
 
 export default function PublicShell({
   bannerUrl,
+  backgroundUrl,
   children,
 }: {
   bannerUrl?: string | null;
+  backgroundUrl?: string | null;
   children: ReactNode;
 }) {
   return (
-    <Box>
+    <Box
+      style={{
+        minHeight: "100vh",
+        ...(backgroundUrl && {
+          // Una sola capa de fondo para todo el sitio público (header + contenido),
+          // no solo el contenido principal; fixed para que cubra el 100% del viewport
+          // sin desplazarse con el scroll.
+          backgroundImage: `url(${backgroundUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+          backgroundRepeat: "no-repeat",
+        }),
+      }}
+    >
       <Box
         style={{
           position: "relative",
-          display: "flex",
-          alignItems: "center",
-          padding: "0.5rem 1rem",
+          width: "100%",
           borderBottom: "1px solid #eaeaea",
-          backgroundColor: "#f8f9fa",
+          // Imagen del banner tal cual, sin opacidad/blur/tintes encima; si no hay backgroundUrl
+          // se deja un color de respaldo plano detrás del logo.
+          ...(!backgroundUrl && { backgroundColor: "#f8f9fa" }),
         }}
       >
-        <Box
-          style={{
-            width: "100%",
-            height: 80,
-            marginBlock: "10px",
-            overflow: "hidden",
-          }}
-        >
-          <Image src={bannerUrl || DEFAULT_BANNER_URL} alt="Banner" fit="contain" height={80} />
-        </Box>
-        <Box style={{ position: "absolute", top: 10, right: 12 }}>
+        {/* Ancho 100%, alto automático según la relación de aspecto real de la imagen:
+            se ve completa siempre, sin recortes, el alto se adapta a cada banner. */}
+        <Image src={bannerUrl || DEFAULT_BANNER_URL} alt="Banner" w="100%" h="auto" style={{ display: "block" }} />
+        <Box style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)" }}>
           <LanguageSwitcher />
         </Box>
       </Box>

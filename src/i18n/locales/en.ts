@@ -53,6 +53,9 @@ const en: typeof es = {
   notFoundPage: {
     message: "We couldn't find this page. Enter through your event's link.",
   },
+  screensaver: {
+    tapToContinue: "Tap to continue",
+  },
 };
 
 export default en;

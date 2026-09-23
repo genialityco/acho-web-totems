@@ -10,6 +10,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
+export const DEFAULT_SCREENSAVER_IDLE_SECONDS = 120;
+export const DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS = 8;
+
 export interface EventInfo {
   slug: string;
   name: string;
@@ -17,9 +20,17 @@ export interface EventInfo {
   // Si están vacíos, el sitio público usa sus valores por defecto (ver PublicShell/HomePage).
   bannerUrl: string | null;
   backgroundUrl: string | null;
+  // Protector de pantalla por inactividad (ver ScreensaverOverlay); apagado por defecto
+  // porque un evento nuevo no tiene fotos/videos configurados todavía.
+  screensaverEnabled: boolean;
+  screensaverIdleSeconds: number;
+  screensaverPhotoDurationSeconds: number;
 }
 
 const optionalUrl = (value: unknown) => (typeof value === "string" && value ? value : null);
+
+const positiveNumber = (value: unknown, fallback: number) =>
+  typeof value === "number" && value > 0 ? value : fallback;
 
 const toEvent = (slug: string, data: DocumentData): EventInfo => ({
   slug,
@@ -27,6 +38,12 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
   votingOpen: data.votingOpen !== false,
   bannerUrl: optionalUrl(data.bannerUrl),
   backgroundUrl: optionalUrl(data.backgroundUrl),
+  screensaverEnabled: data.screensaverEnabled === true,
+  screensaverIdleSeconds: positiveNumber(data.screensaverIdleSeconds, DEFAULT_SCREENSAVER_IDLE_SECONDS),
+  screensaverPhotoDurationSeconds: positiveNumber(
+    data.screensaverPhotoDurationSeconds,
+    DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS
+  ),
 });
 
 // Suscripción en vivo al evento; entrega null si el slug no existe.
@@ -66,5 +83,16 @@ export const createEvent = async (slug: string, name: string) => {
 
 export const updateEvent = (
   slug: string,
-  changes: Partial<Pick<EventInfo, "name" | "votingOpen" | "bannerUrl" | "backgroundUrl">>
+  changes: Partial<
+    Pick<
+      EventInfo,
+      | "name"
+      | "votingOpen"
+      | "bannerUrl"
+      | "backgroundUrl"
+      | "screensaverEnabled"
+      | "screensaverIdleSeconds"
+      | "screensaverPhotoDurationSeconds"
+    >
+  >
 ) => updateDoc(doc(db, "events", slug), changes);

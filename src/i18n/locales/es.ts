@@ -50,6 +50,9 @@ const es = {
   notFoundPage: {
     message: "No encontramos esta página. Ingresa desde el enlace de tu evento.",
   },
+  screensaver: {
+    tapToContinue: "Toca para continuar",
+  },
 };
 
 export default es;

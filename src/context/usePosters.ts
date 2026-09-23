@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { EventInfo } from "../services/firestore/eventService";
 import type { Category } from "../services/firestore/categoryService";
 import type { Paper } from "../services/firestore/paperService";
+import type { ScreensaverItem } from "../services/firestore/screensaverService";
 
 export type EventStatus = "loading" | "ready" | "not-found" | "error";
 
@@ -13,6 +14,7 @@ export type PostersContextType = {
   eventStatus: EventStatus;
   posters: Paper[];
   currentPagePosters: Paper[];
+  screensaverItems: ScreensaverItem[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   loading: boolean;

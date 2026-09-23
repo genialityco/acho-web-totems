@@ -15,6 +15,7 @@ import AdminCategories from "./pages/admin/AdminCategories";
 import AdminPapers from "./pages/admin/AdminPapers";
 import AdminVoters from "./pages/admin/AdminVoters";
 import AdminResults from "./pages/admin/AdminResults";
+import AdminScreensaver from "./pages/admin/AdminScreensaver";
 import PapersBulkUpload from "./components/admin/PapersBulkUpload";
 import VotersBulkUpload from "./components/admin/VotersBulkUpload";
 
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="voters" element={<AdminVoters />} />
                 <Route path="voters/bulk-upload" element={<VotersBulkUpload />} />
                 <Route path="results" element={<AdminResults />} />
+                <Route path="screensaver" element={<AdminScreensaver />} />
               </Route>
             </Route>
           </Route>
