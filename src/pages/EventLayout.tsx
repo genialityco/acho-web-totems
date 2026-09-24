@@ -39,7 +39,11 @@ function EventGate() {
 
   return (
     <>
-      <PublicShell bannerUrl={event?.bannerUrl} backgroundUrl={event?.backgroundUrl}>
+      <PublicShell
+        bannerUrl={event?.bannerUrl}
+        backgroundUrl={event?.backgroundUrl}
+        idleSeconds={event?.screensaverIdleSeconds}
+      >
         {content}
       </PublicShell>
       {eventStatus === "ready" && event?.screensaverEnabled && screensaverItems.length > 0 && (

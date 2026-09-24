@@ -221,22 +221,24 @@ export const PosterList = () => {
           </Stack>
         )}
 
-        <Group justify="center">
-          <Select
-            placeholder={t("posterList.themeFilterPlaceholder")}
-            size="lg"
-            data={themes}
-            value={selectedTheme}
-            onChange={handleThemeChange}
-            clearable
-            disabled={isThemeLocked}
-            style={{ flexGrow: 1 }}
-          />
+        {themes.length > 0 && (
+          <Group justify="center">
+            <Select
+              placeholder={t("posterList.themeFilterPlaceholder")}
+              size="lg"
+              data={themes}
+              value={selectedTheme}
+              onChange={handleThemeChange}
+              clearable
+              disabled={isThemeLocked}
+              style={{ flexGrow: 1 }}
+            />
 
-          <ActionIcon onClick={toggleThemeLock} size="lg" variant="default">
-            {isThemeLocked ? <IconLock /> : <IconLockAccessOff />}
-          </ActionIcon>
-        </Group>
+            <ActionIcon onClick={toggleThemeLock} size="lg" variant="default">
+              {isThemeLocked ? <IconLock /> : <IconLockAccessOff />}
+            </ActionIcon>
+          </Group>
+        )}
 
         {loading ? (
           <Center py="xl">
