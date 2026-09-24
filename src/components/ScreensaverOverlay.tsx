@@ -60,14 +60,14 @@ export default function ScreensaverOverlay({
           // volvería a renderizar y el video quedaría congelado en el último cuadro.
           loop={items.length === 1}
           onEnded={() => setIndex((i) => (i + 1) % items.length)}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: "100%", height: "100%", objectFit: current.fit }}
         />
       ) : (
         <img
           key={current.id}
           src={current.url}
           alt=""
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: "100%", height: "100%", objectFit: current.fit }}
         />
       )}
       <Text

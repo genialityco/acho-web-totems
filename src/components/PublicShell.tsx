@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
-import { Box, Container, Image } from "@mantine/core";
+import { Box, Container, Image, Skeleton } from "@mantine/core";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-const DEFAULT_BANNER_URL =
-  "https://ik.imagekit.io/6cx9tc1kx/Imagenes%20App%20Prueba/LOGO_ACHO.png?updatedAt=1726756148659";
+// Alto fijo del placeholder cuando el evento no tiene bannerUrl propio (no hay
+// imagen de referencia de la que derivar un alto automático, a diferencia del
+// banner real que usa h="auto" según su relación de aspecto).
+const BANNER_SKELETON_HEIGHT = 120;
 
 export default function PublicShell({
   bannerUrl,
@@ -42,7 +44,11 @@ export default function PublicShell({
       >
         {/* Ancho 100%, alto automático según la relación de aspecto real de la imagen:
             se ve completa siempre, sin recortes, el alto se adapta a cada banner. */}
-        <Image src={bannerUrl || DEFAULT_BANNER_URL} alt="Banner" w="100%" h="auto" style={{ display: "block" }} />
+        {bannerUrl ? (
+          <Image src={bannerUrl} alt="Banner" w="100%" h="auto" style={{ display: "block" }} />
+        ) : (
+          <Skeleton height={BANNER_SKELETON_HEIGHT} width="100%" radius={0} />
+        )}
         <Box style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)" }}>
           <LanguageSwitcher />
         </Box>

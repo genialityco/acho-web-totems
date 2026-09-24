@@ -8,6 +8,8 @@ export type EventStatus = "loading" | "ready" | "not-found" | "error";
 
 export type CategoryWithCount = Category & { count: number };
 
+export type SearchMode = "exact" | "semantic" | "both";
+
 export type PostersContextType = {
   eventSlug: string;
   event: EventInfo | null;
@@ -17,6 +19,9 @@ export type PostersContextType = {
   screensaverItems: ScreensaverItem[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  searchMode: SearchMode;
+  setSearchMode: (mode: SearchMode) => void;
+  semanticSearchLoading: boolean;
   loading: boolean;
   page: number;
   setPage: (page: number) => void;

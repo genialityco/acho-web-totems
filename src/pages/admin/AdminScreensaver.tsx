@@ -12,6 +12,7 @@ import {
   Modal,
   NumberInput,
   Progress,
+  SegmentedControl,
   Stack,
   Switch,
   Table,
@@ -25,6 +26,7 @@ import { useAdminEvent } from "../../context/useAdminEvent";
 import { EventInfo, updateEvent } from "../../services/firestore/eventService";
 import {
   ScreensaverItem,
+  ScreensaverItemFit,
   ScreensaverItemInput,
   createScreensaverItem,
   deleteScreensaverItem,
@@ -125,6 +127,7 @@ function ScreensaverItemFormModal({
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [order, setOrder] = useState<number>(nextOrder);
+  const [fit, setFit] = useState<ScreensaverItemFit>(item?.fit ?? "cover");
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -132,13 +135,14 @@ function ScreensaverItemFormModal({
   useEffect(() => {
     setFile(null);
     setOrder(item?.order ?? nextOrder);
+    setFit(item?.fit ?? "cover");
     setError(null);
     setUploadProgress(null);
   }, [item, nextOrder]);
 
   const handleSubmit = async () => {
     if (!file && !item) return setError("Selecciona una foto o un video.");
-    if (file && file.size > MAX_SCREENSAVER_MEDIA_BYTES) return setError("El archivo no puede superar los 50 MB.");
+    if (file && file.size > MAX_SCREENSAVER_MEDIA_BYTES) return setError("El archivo no puede superar los 150 MB.");
     if (file && !file.type.startsWith("image/") && !file.type.startsWith("video/")) {
       return setError("El archivo debe ser una imagen o un video.");
     }
@@ -154,7 +158,7 @@ function ScreensaverItemFormModal({
         setUploadProgress(0);
         url = await uploadScreensaverMedia(eventSlug, type, file, setUploadProgress).promise;
       }
-      await onSave({ type, url, order });
+      await onSave({ type, url, order, fit });
       if (file && previousUrl && previousUrl !== url) {
         // El elemento ya quedó guardado con el archivo nuevo; el anterior es basura en Storage.
         deleteScreensaverMedia(previousUrl).catch((err) => console.error("No se pudo borrar el archivo anterior:", err));
@@ -179,7 +183,7 @@ function ScreensaverItemFormModal({
         <Stack gap={4}>
           <FileInput
             label="Foto o video"
-            description={item ? "Deja vacío para conservar el archivo actual. Máx. 50 MB." : "Máx. 50 MB."}
+            description={item ? "Deja vacío para conservar el archivo actual. Máx. 150 MB." : "Máx. 150 MB."}
             placeholder="Seleccionar archivo..."
             accept="image/*,video/*"
             leftSection={<IconPhoto size={16} />}
@@ -205,6 +209,24 @@ function ScreensaverItemFormModal({
           value={order}
           onChange={(v) => setOrder(typeof v === "number" ? v : Number(v) || 0)}
         />
+        <Stack gap={4}>
+          <Text size="sm" fw={500}>
+            Ajuste en pantalla
+          </Text>
+          <SegmentedControl
+            value={fit}
+            onChange={(v) => setFit(v as ScreensaverItemFit)}
+            data={[
+              { label: "Llenar pantalla", value: "cover" },
+              { label: "Ver completo", value: "contain" },
+            ]}
+          />
+          <Text size="xs" c="dimmed">
+            {fit === "cover"
+              ? "Llena toda la pantalla; si la relación de aspecto no coincide, recorta los bordes. Ideal para video/foto verticales en una pantalla vertical."
+              : "Muestra el archivo completo sin recortar; deja franjas negras si la relación de aspecto no coincide. Ideal para un video horizontal en una pantalla vertical."}
+          </Text>
+        </Stack>
         {error && <Alert color="red">{error}</Alert>}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose} disabled={saving}>
@@ -275,6 +297,7 @@ export default function AdminScreensaver() {
                 <Table.Th>Orden</Table.Th>
                 <Table.Th>Vista previa</Table.Th>
                 <Table.Th>Tipo</Table.Th>
+                <Table.Th>Ajuste</Table.Th>
                 <Table.Th />
               </Table.Tr>
             </Table.Thead>
@@ -294,6 +317,11 @@ export default function AdminScreensaver() {
                   <Table.Td>
                     <Badge color={item.type === "image" ? "blue" : "grape"}>
                       {item.type === "image" ? "Foto" : "Video"}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge variant="light" color="gray">
+                      {item.fit === "cover" ? "Llenar pantalla" : "Ver completo"}
                     </Badge>
                   </Table.Td>
                   <Table.Td>

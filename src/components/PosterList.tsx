@@ -11,6 +11,7 @@ import {
   Stack,
   Box,
   Select,
+  SegmentedControl,
   Badge,
   ActionIcon,
   Center,
@@ -19,7 +20,7 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { usePosters } from "../context/usePosters";
+import { usePosters, SearchMode } from "../context/usePosters";
 import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { IconLock, IconLockAccessOff, IconSearchOff } from "@tabler/icons-react";
@@ -32,6 +33,9 @@ export const PosterList = () => {
     currentPagePosters,
     searchTerm,
     setSearchTerm,
+    searchMode,
+    setSearchMode,
+    semanticSearchLoading,
     loading,
     page,
     setPage,
@@ -70,6 +74,11 @@ export const PosterList = () => {
 
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
+    setPage(1);
+  };
+
+  const handleSearchModeChange = (mode: string) => {
+    setSearchMode(mode as SearchMode);
     setPage(1);
   };
 
@@ -144,12 +153,29 @@ export const PosterList = () => {
       py="md"
     >
       <Stack gap="xl">
-        <TextInput
-          placeholder={t("posterList.searchPlaceholder")}
-          size="lg"
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.currentTarget.value)}
-        />
+        <Stack gap="xs">
+          <TextInput
+            placeholder={t("posterList.searchPlaceholder")}
+            size="lg"
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.currentTarget.value)}
+            rightSection={semanticSearchLoading ? <Loader size="xs" /> : null}
+          />
+          <Group justify="space-between" wrap="wrap" gap="xs">
+            <SegmentedControl
+              value={searchMode}
+              onChange={handleSearchModeChange}
+              data={[
+                { value: "exact", label: t("posterList.searchModeExact") },
+                { value: "semantic", label: t("posterList.searchModeSemantic") },
+                { value: "both", label: t("posterList.searchModeBoth") },
+              ]}
+            />
+            <Text size="xs" c="dimmed">
+              {t(`posterList.searchModeCaption.${searchMode}`)}
+            </Text>
+          </Group>
+        </Stack>
 
         {categories.length > 0 && (
           <Stack gap="xs">

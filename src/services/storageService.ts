@@ -3,7 +3,7 @@ import { storage } from "./firebaseConfig";
 
 export const MAX_PAPER_FILE_BYTES = 30 * 1024 * 1024;
 export const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
-export const MAX_SCREENSAVER_MEDIA_BYTES = 50 * 1024 * 1024;
+export const MAX_SCREENSAVER_MEDIA_BYTES = 150 * 1024 * 1024;
 
 const sanitizeFileName = (name: string) =>
   name

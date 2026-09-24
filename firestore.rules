@@ -30,6 +30,11 @@ service cloud.firestore {
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['voteCount']);
       }
 
+      match /paperSearchIndex/{paperId} {
+        allow read: if true;
+        allow write: if false; // solo la Cloud Function de indexado (Admin SDK)
+      }
+
       match /voters/{idNumber} {
         allow read, write: if isAdmin();
       }

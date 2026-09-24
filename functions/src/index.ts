@@ -1,20 +1,11 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { initializeApp } from "firebase-admin/app";
-import { getFirestore, FieldValue, WriteBatch } from "firebase-admin/firestore";
+import { FieldValue, WriteBatch } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import { db, assertIsAdmin } from "./lib/admin";
 
-initializeApp();
-const db = getFirestore();
-
-async function assertIsAdmin(uid: string | undefined): Promise<void> {
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  }
-  const adminDoc = await db.doc(`admins/${uid}`).get();
-  if (!adminDoc.exists) {
-    throw new HttpsError("permission-denied", "No tienes permisos de administrador.");
-  }
-}
+export * from "./search/indexPaperSearchTrigger";
+export * from "./search/embedSearchQuery";
+export * from "./search/reindexPaperSearch";
 
 interface CastVoteRequest {
   eventSlug?: string;

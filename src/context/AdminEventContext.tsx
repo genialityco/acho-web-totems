@@ -5,6 +5,7 @@ import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeVoters, Voter } from "../services/firestore/voterService";
 import { subscribeVotes, VoteRecord } from "../services/firestore/voteService";
 import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
+import { subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
 import { AdminEventContext, AdminEventStatus } from "./useAdminEvent";
 
 export const AdminEventProvider: React.FC<{
@@ -17,6 +18,7 @@ export const AdminEventProvider: React.FC<{
   const [voters, setVoters] = useState<Voter[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
   const [screensaverItems, setScreensaverItems] = useState<ScreensaverItem[]>([]);
+  const [paperSearchIndex, setPaperSearchIndex] = useState<PaperSearchIndex[]>([]);
   const [loaded, setLoaded] = useState({
     event: false,
     categories: false,
@@ -24,6 +26,7 @@ export const AdminEventProvider: React.FC<{
     voters: false,
     votes: false,
     screensaverItems: false,
+    paperSearchIndex: false,
   });
   const [failed, setFailed] = useState(false);
 
@@ -41,6 +44,7 @@ export const AdminEventProvider: React.FC<{
       subscribeVoters(eventSlug, (list) => { setVoters(list); markLoaded("voters"); }, fail),
       subscribeVotes(eventSlug, (list) => { setVotes(list); markLoaded("votes"); }, fail),
       subscribeScreensaverItems(eventSlug, (list) => { setScreensaverItems(list); markLoaded("screensaverItems"); }, fail),
+      subscribePaperSearchIndex(eventSlug, (list) => { setPaperSearchIndex(list); markLoaded("paperSearchIndex"); }, fail),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [eventSlug]);
@@ -55,7 +59,7 @@ export const AdminEventProvider: React.FC<{
 
   return (
     <AdminEventContext.Provider
-      value={{ eventSlug, status, event, categories, papers, voters, votes, screensaverItems }}
+      value={{ eventSlug, status, event, categories, papers, voters, votes, screensaverItems, paperSearchIndex }}
     >
       {children}
     </AdminEventContext.Provider>

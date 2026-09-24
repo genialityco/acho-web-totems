@@ -28,7 +28,6 @@ const PosterDetail = () => {
   const [idNumber, setIdNumber] = useState<string>("");
   const [isVoteModalOpen, setIsVoteModalOpen] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
-  const [showQrCodes, setShowQrCodes] = useState(false); // Estado para mostrar los QR
   const [showModalSuccess, setShowModalSuccess] = useState(false); // Estado para mostrar el modal de éxito
   const [showVotedInfo, setShowVotedInfo] = useState(false); // Estado para mostrar la información de voto
 
@@ -74,7 +73,6 @@ const PosterDetail = () => {
 
     setIsVoting(true);
     setVoteError(null);
-    setShowQrCodes(false);
     setShowVotedInfo(false);
     try {
       await castVote({ eventSlug, idNumber: cedula, paperId: poster.id });
@@ -84,7 +82,6 @@ const PosterDetail = () => {
     } catch (error) {
       if (error instanceof VoteError && error.code === "not-found") {
         setVoteError(t("posterDetail.voterNotFound"));
-        setShowQrCodes(true);
       } else if (error instanceof VoteError && error.code === "already-exists") {
         setVoteError(
           error.paperTitle
@@ -225,47 +222,7 @@ const PosterDetail = () => {
             <Text mt="md" ta="center">
               {t("posterDetail.thanksForParticipating")}
             </Text>
-            <Text mt="md" ta="center">
-              {t("posterDetail.appPromo")}
-            </Text>
-            <Group justify="center" mt="md">
-              <img
-                src="https://ik.imagekit.io/6cx9tc1kx/qrios.jpeg"
-                alt={t("posterDetail.qrAlt1")}
-                width={100}
-                height={100}
-                style={{ marginRight: "150px" }}
-              />
-              <img
-                src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg"
-                alt={t("posterDetail.qrAlt2")}
-                width={100}
-                height={100}
-              />
-            </Group>
-            <Text>{t("posterDetail.supportContact")}</Text>
           </Flex>
-        )}
-        {showQrCodes && (
-          <Box mt="lg" style={{ textAlign: "center" }}>
-            <Text>{t("posterDetail.scanQr")}</Text>
-            <Group justify="center" mt="md">
-              <img
-                src="https://ik.imagekit.io/6cx9tc1kx/qrios.jpeg"
-                alt={t("posterDetail.qrAlt1")}
-                width={100}
-                height={100}
-                style={{ marginRight: "150px" }}
-              />
-              <img
-                src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg"
-                alt={t("posterDetail.qrAlt2")}
-                width={100}
-                height={100}
-              />
-            </Group>
-            <Text>{t("posterDetail.supportContact")}</Text>
-          </Box>
         )}
       </Modal>
 
@@ -279,25 +236,6 @@ const PosterDetail = () => {
         <Text mt="md" ta="center">
           {t("posterDetail.thanksForParticipating")}
         </Text>
-        <Text size="lg" variant="h1" mt="md" ta="center">
-          {t("posterDetail.appPromo")}
-        </Text>
-        <Group justify="center" mt="md">
-          <img
-            src="https://ik.imagekit.io/6cx9tc1kx/qrios.jpeg"
-            alt={t("posterDetail.qrAlt1")}
-            width={100}
-            height={100}
-            style={{ marginRight: "150px" }}
-          />
-          <img
-            src="https://ik.imagekit.io/6cx9tc1kx/qrandroid.jpeg"
-            alt={t("posterDetail.qrAlt2")}
-            width={100}
-            height={100}
-          />
-        </Group>
-        <Text>{t("posterDetail.supportContact")}</Text>
       </Modal>
     </Container>
   );

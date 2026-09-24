@@ -5,6 +5,7 @@ import {
   Alert,
   Anchor,
   Autocomplete,
+  Badge,
   Button,
   FileInput,
   Group,
@@ -19,7 +20,14 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { IconFileTypePdf, IconPencil, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
+import {
+  IconFileTypePdf,
+  IconPencil,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconUpload,
+} from "@tabler/icons-react";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { usePagination } from "../../components/admin/usePagination";
 import { useAdminEvent } from "../../context/useAdminEvent";
@@ -32,8 +40,48 @@ import {
   parseAuthors,
   updatePaper,
 } from "../../services/firestore/paperService";
+import { PaperSearchIndex, PaperSearchIndexStatus } from "../../services/firestore/paperSearchIndexService";
+import { reindexPaperSearch } from "../../services/firestore/searchQueryService";
 import { deletePaperPdf, MAX_PAPER_FILE_BYTES, uploadPaperPdf } from "../../services/storageService";
 import { normalizeText } from "../../utils/text";
+
+const SEARCH_INDEX_BADGE: Record<PaperSearchIndexStatus, { label: string; color: string }> = {
+  pending: { label: "Pendiente", color: "gray" },
+  processing: { label: "Procesando", color: "blue" },
+  ready: { label: "Lista", color: "green" },
+  error: { label: "Error", color: "red" },
+  unsupported: { label: "No compatible", color: "yellow" },
+};
+
+function SearchIndexBadge({
+  index,
+  onRetry,
+  retrying,
+}: {
+  index: PaperSearchIndex | undefined;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  const status = index?.status ?? "pending";
+  const { label, color } = SEARCH_INDEX_BADGE[status];
+  const badge = (
+    <Badge color={color} variant="light">
+      {label}
+    </Badge>
+  );
+  return (
+    <Group gap={4} wrap="nowrap">
+      {index?.error ? <Tooltip label={index.error}>{badge}</Tooltip> : badge}
+      {(status === "error" || status === "unsupported") && (
+        <Tooltip label="Reintentar indexado">
+          <ActionIcon variant="subtle" size="sm" loading={retrying} onClick={onRetry} aria-label="Reintentar indexado">
+            <IconRefresh size={14} />
+          </ActionIcon>
+        </Tooltip>
+      )}
+    </Group>
+  );
+}
 
 function PaperFormModal({
   paper,
@@ -179,14 +227,46 @@ function PaperFormModal({
 }
 
 export default function AdminPapers() {
-  const { eventSlug, categories, papers } = useAdminEvent();
+  const { eventSlug, categories, papers, paperSearchIndex } = useAdminEvent();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Paper | "new" | null>(null);
   const [toDelete, setToDelete] = useState<Paper | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [retryingPaperId, setRetryingPaperId] = useState<string | null>(null);
+  const [reindexingAll, setReindexingAll] = useState(false);
+  const [reindexError, setReindexError] = useState<string | null>(null);
 
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
+
+  const searchIndexByPaperId = useMemo(
+    () => new Map(paperSearchIndex.map((i) => [i.paperId, i])),
+    [paperSearchIndex]
+  );
+
+  const handleRetryIndex = async (paperId: string) => {
+    setRetryingPaperId(paperId);
+    setReindexError(null);
+    try {
+      await reindexPaperSearch(eventSlug, paperId);
+    } catch (e) {
+      setReindexError(errorMessage(e));
+    } finally {
+      setRetryingPaperId(null);
+    }
+  };
+
+  const handleReindexAll = async () => {
+    setReindexingAll(true);
+    setReindexError(null);
+    try {
+      await reindexPaperSearch(eventSlug);
+    } catch (e) {
+      setReindexError(errorMessage(e));
+    } finally {
+      setReindexingAll(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const term = normalizeText(search);
@@ -241,11 +321,23 @@ export default function AdminPapers() {
           >
             Carga masiva
           </Button>
+          <Tooltip label="Vuelve a extraer el texto y el índice de búsqueda de todos los papers del evento">
+            <Button
+              variant="light"
+              leftSection={<IconRefresh size={16} />}
+              loading={reindexingAll}
+              onClick={handleReindexAll}
+            >
+              Reindexar todo
+            </Button>
+          </Tooltip>
           <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing("new")}>
             Nuevo paper
           </Button>
         </Group>
       </Group>
+
+      {reindexError && <Alert color="red">{reindexError}</Alert>}
 
       <Text size="sm" c="dimmed">
         {filtered.length} de {papers.length} papers
@@ -263,6 +355,7 @@ export default function AdminPapers() {
                 <Table.Th>Categoría</Table.Th>
                 <Table.Th>Tema</Table.Th>
                 <Table.Th>Votos</Table.Th>
+                <Table.Th>Búsqueda</Table.Th>
                 <Table.Th />
               </Table.Tr>
             </Table.Thead>
@@ -274,6 +367,13 @@ export default function AdminPapers() {
                   <Table.Td>{categoryName(paper.categoryId)}</Table.Td>
                   <Table.Td>{paper.theme ?? "—"}</Table.Td>
                   <Table.Td>{paper.voteCount}</Table.Td>
+                  <Table.Td>
+                    <SearchIndexBadge
+                      index={searchIndexByPaperId.get(paper.id)}
+                      onRetry={() => handleRetryIndex(paper.id)}
+                      retrying={retryingPaperId === paper.id}
+                    />
+                  </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end" wrap="nowrap">
                       <Tooltip label="Editar">
