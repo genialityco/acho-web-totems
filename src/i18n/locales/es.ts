@@ -22,6 +22,12 @@ const es = {
     noResults: "No se encontraron pósters.",
     resultsCount: "Resultados: {{shown}} de {{total}}",
     matchInDocument: "En el documento:",
+    explanation: {
+      button: "¿Por qué este resultado?",
+      loading: "Generando explicación...",
+      error: "No se pudo generar la explicación. Intenta de nuevo.",
+      aiNote: "Generado con IA; puede contener imprecisiones.",
+    },
     authorsLabel: "Autor(es):",
     viewPoster: "Ver póster",
     pageOf: "Página {{page}} de {{totalPages}}",

@@ -171,7 +171,7 @@ export const PostersProvider: React.FC<{
     return bodies;
   }, [searchIndexByPaperId]);
 
-  const { filteredPosters, categoryCounts } = useMemo(() => {
+  const { filteredPosters, categoryCounts, semanticOnlyIds } = useMemo(() => {
     const term = normalizeSearchText(searchTerm);
 
     // Título > autor > cuerpo del PDF (solo si ya está indexado). Devuelve 0
@@ -243,9 +243,22 @@ export const PostersProvider: React.FC<{
       filtered.sort((a, b) => (searchScore(b) ?? 0) - (searchScore(a) ?? 0));
     }
 
+    // Resultados que están ahí solo por significado: no tienen nada resaltado ni fragmento con
+    // el que se justifiquen (en modo conceptual no se resalta nada; en "Ambas" los exactos ya
+    // se explican solos). Son los únicos que pueden pedir una explicación.
+    const semanticOnly = new Set<string>();
+    if (term && searchMode !== "exact") {
+      filtered.forEach((paper) => {
+        if (semanticScore(paper) !== null && (searchMode === "semantic" || exactScore(paper) === 0)) {
+          semanticOnly.add(paper.id);
+        }
+      });
+    }
+
     return {
       filteredPosters: filtered,
       categoryCounts: counts,
+      semanticOnlyIds: semanticOnly,
     };
   }, [posters, searchTerm, selectedCategory, selectedTheme, searchMode, searchIndexByPaperId, bodyByPaperId, queryEmbedding]);
 
@@ -279,6 +292,10 @@ export const PostersProvider: React.FC<{
     return body ? buildSnippet(body.text, term) : null;
   };
 
+  // Mientras el embedding de la consulta está en vuelo los resultados todavía no son válidos.
+  const canExplainMatch = (paperId: string) =>
+    !!event?.searchExplanationsEnabled && !semanticSearchLoading && semanticOnlyIds.has(paperId);
+
   const totalPages = Math.max(1, Math.ceil(filteredPosters.length / itemsPerPage));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -301,6 +318,7 @@ export const PostersProvider: React.FC<{
         totalResults: filteredPosters.length,
         highlightTerm,
         getBodySnippet,
+        canExplainMatch,
         loading,
         page: currentPage,
         setPage,

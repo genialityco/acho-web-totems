@@ -25,6 +25,9 @@ export interface EventInfo {
   screensaverEnabled: boolean;
   screensaverIdleSeconds: number;
   screensaverPhotoDurationSeconds: number;
+  // Botón "¿Por qué este resultado?" en los resultados de la búsqueda conceptual (ver
+  // MatchExplanation); apagado por defecto porque cada explicación es una llamada a Gemini.
+  searchExplanationsEnabled: boolean;
 }
 
 const optionalUrl = (value: unknown) => (typeof value === "string" && value ? value : null);
@@ -44,6 +47,7 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
     data.screensaverPhotoDurationSeconds,
     DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS
   ),
+  searchExplanationsEnabled: data.searchExplanationsEnabled === true,
 });
 
 // Suscripción en vivo al evento; entrega null si el slug no existe.
@@ -93,6 +97,7 @@ export const updateEvent = (
       | "screensaverEnabled"
       | "screensaverIdleSeconds"
       | "screensaverPhotoDurationSeconds"
+      | "searchExplanationsEnabled"
     >
   >
 ) => updateDoc(doc(db, "events", slug), changes);

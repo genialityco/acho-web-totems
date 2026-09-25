@@ -252,6 +252,16 @@ function EventFrame() {
     }
   };
 
+  const toggleSearchExplanations = async (enabled: boolean) => {
+    setError(null);
+    try {
+      await updateEvent(eventSlug, { searchExplanationsEnabled: enabled });
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cambiar el estado de las explicaciones de búsqueda.");
+    }
+  };
+
   return (
     <Stack gap="md">
       {backLink}
@@ -275,16 +285,29 @@ function EventFrame() {
             </Anchor>
           </Group>
         </Stack>
-        <Stack gap={2} align="flex-end">
-          <Switch
-            size="md"
-            checked={event.votingOpen}
-            onChange={(e) => void toggleVoting(e.currentTarget.checked)}
-            label={event.votingOpen ? "Votación abierta" : "Votación cerrada"}
-          />
-          <Text size="xs" c="dimmed">
-            Cuando está cerrada nadie puede votar.
-          </Text>
+        <Stack gap="xs" align="flex-end">
+          <Stack gap={2} align="flex-end">
+            <Switch
+              size="md"
+              checked={event.votingOpen}
+              onChange={(e) => void toggleVoting(e.currentTarget.checked)}
+              label={event.votingOpen ? "Votación abierta" : "Votación cerrada"}
+            />
+            <Text size="xs" c="dimmed">
+              Cuando está cerrada nadie puede votar.
+            </Text>
+          </Stack>
+          <Stack gap={2} align="flex-end">
+            <Switch
+              size="md"
+              checked={event.searchExplanationsEnabled}
+              onChange={(e) => void toggleSearchExplanations(e.currentTarget.checked)}
+              label={event.searchExplanationsEnabled ? "Explicaciones de búsqueda activadas" : "Explicaciones de búsqueda desactivadas"}
+            />
+            <Text size="xs" c="dimmed" ta="right" maw={320}>
+              Muestra "¿Por qué este resultado?" en los resultados de la búsqueda conceptual. Cada explicación usa IA (Gemini).
+            </Text>
+          </Stack>
         </Stack>
       </Group>
 

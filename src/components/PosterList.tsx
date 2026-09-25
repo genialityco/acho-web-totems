@@ -25,6 +25,7 @@ import { usePosters, SearchMode } from "../context/usePosters";
 import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { HighlightedText } from "./HighlightedText";
+import { MatchExplanation } from "./MatchExplanation";
 import { IconLock, IconLockAccessOff, IconSearchOff } from "@tabler/icons-react";
 import "./PosterList.css";
 
@@ -42,6 +43,7 @@ export const PosterList = () => {
     totalResults,
     highlightTerm,
     getBodySnippet,
+    canExplainMatch,
     loading,
     page,
     setPage,
@@ -153,6 +155,9 @@ export const PosterList = () => {
               <Mark>{snippet.match}</Mark>
               {snippet.after}”
             </Text>
+          )}
+          {canExplainMatch(poster.id) && (
+            <MatchExplanation key={searchTerm} eventSlug={eventSlug} paperId={poster.id} query={searchTerm} />
           )}
         </Stack>
         <Group justify="flex-end" mt="md">

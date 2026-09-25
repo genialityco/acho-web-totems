@@ -31,6 +31,9 @@ export type PostersContextType = {
   // Fragmento del texto del PDF con el término, solo si el match de ese póster está únicamente
   // ahí (si está en el título o los autores ya se resalta allí). null en cualquier otro caso.
   getBodySnippet: (paperId: string) => SearchSnippet | null;
+  // true si el póster aparece solo por significado y el admin activó las explicaciones del evento
+  // (ver MatchExplanation): la tarjeta ofrece entonces "¿Por qué este resultado?".
+  canExplainMatch: (paperId: string) => boolean;
   loading: boolean;
   page: number;
   setPage: (page: number) => void;

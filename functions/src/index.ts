@@ -5,6 +5,7 @@ import { db, assertIsAdmin } from "./lib/admin";
 
 export * from "./search/indexPaperSearchTrigger";
 export * from "./search/embedSearchQuery";
+export * from "./search/explainSearchMatch";
 export * from "./search/reindexPaperSearch";
 
 interface CastVoteRequest {

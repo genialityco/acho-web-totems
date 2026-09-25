@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://genpdfviewer.netlify.app", "https://genpapers.geniality.com.co"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "Content-Length"],
+    "maxAgeSeconds": 3600
+  }
+]

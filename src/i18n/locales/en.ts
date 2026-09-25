@@ -25,6 +25,12 @@ const en: typeof es = {
     noResults: "No posters found.",
     resultsCount: "Results: {{shown}} of {{total}}",
     matchInDocument: "In the document:",
+    explanation: {
+      button: "Why this result?",
+      loading: "Generating explanation...",
+      error: "Couldn't generate the explanation. Please try again.",
+      aiNote: "AI-generated; may contain inaccuracies.",
+    },
     authorsLabel: "Author(s):",
     viewPoster: "View poster",
     pageOf: "Page {{page}} of {{totalPages}}",
