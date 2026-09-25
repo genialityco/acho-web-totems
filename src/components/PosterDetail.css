@@ -9,7 +9,55 @@
       transform: scale(1);
     }
   }
-  
+
   .pulse-button {
     animation: pulse 1.5s infinite;
   }
+
+/* Visor del PDF: barra de acciones arriba + iframe que ocupa el resto. */
+.posterViewer {
+  width: 100%;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+}
+
+.posterViewerToolbar {
+  flex: none;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+}
+
+.posterViewerFrame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+}
+
+/* En móvil el visor va de borde a borde: PublicShell y PosterDetail aportan cada uno un
+   Container fluid (spacing-md a cada lado), se compensan los dos. */
+@media (max-width: 48em) {
+  .posterViewer {
+    width: auto;
+    margin-inline: calc(-2 * var(--mantine-spacing-md));
+    border-radius: 0;
+  }
+}
+
+/* Pantalla completa sin la API nativa (ej. Safari en iPhone): capa fija sobre el viewport.
+   z-index por debajo del protector de pantalla (9999) para que este siga cubriéndolo. */
+.posterViewer.posterViewer--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  border-radius: 0;
+}

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   TextInput,
   Card,
   Text,
+  Mark,
   Loader,
   Button,
   Container,
@@ -23,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { usePosters, SearchMode } from "../context/usePosters";
 import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
+import { HighlightedText } from "./HighlightedText";
 import { IconLock, IconLockAccessOff, IconSearchOff } from "@tabler/icons-react";
 import "./PosterList.css";
 
@@ -30,12 +32,16 @@ export const PosterList = () => {
   const { t } = useTranslation();
   const {
     eventSlug,
+    posters,
     currentPagePosters,
     searchTerm,
     setSearchTerm,
     searchMode,
     setSearchMode,
     semanticSearchLoading,
+    totalResults,
+    highlightTerm,
+    getBodySnippet,
     loading,
     page,
     setPage,
@@ -100,6 +106,7 @@ export const PosterList = () => {
 
   const renderPoster = (poster: Paper) => {
     const color = poster.categoryId ? categoryColorById.get(poster.categoryId) : undefined;
+    const snippet = getBodySnippet(poster.id);
 
     return (
       <Card
@@ -123,8 +130,8 @@ export const PosterList = () => {
               {getCategoryName(poster.categoryId)}
             </Badge>
           )}
-          <Text fw={600} fz={isGiantUp ? "xl" : isTvUp ? "lg" : "md"} lineClamp={2}>
-            {poster.title}
+          <Text fw={600} fz={isGiantUp ? "xl" : isTvUp ? "lg" : "md"} lineClamp={4}>
+            <HighlightedText text={poster.title} term={highlightTerm} />
           </Text>
           {poster.theme && (
             <Text size="sm" c="dimmed">
@@ -132,8 +139,21 @@ export const PosterList = () => {
             </Text>
           )}
           <Text size="sm" c="dimmed">
-            {t("posterList.authorsLabel")} {poster.authors.join(", ")}
+            {t("posterList.authorsLabel")}{" "}
+            {poster.authors.map((author, i) => (
+              <Fragment key={i}>
+                {i > 0 && ", "}
+                <HighlightedText text={author} term={highlightTerm} />
+              </Fragment>
+            ))}
           </Text>
+          {snippet && (
+            <Text size="xs" c="dimmed">
+              {t("posterList.matchInDocument")} “{snippet.before}
+              <Mark>{snippet.match}</Mark>
+              {snippet.after}”
+            </Text>
+          )}
         </Stack>
         <Group justify="flex-end" mt="md">
           <Button component={Link} to={`/${eventSlug}/paper/${poster.id}`} variant="outline">
@@ -143,6 +163,15 @@ export const PosterList = () => {
       </Card>
     );
   };
+
+  // "Resultados: x de y": solo con una búsqueda activa y ya calculada (en modo conceptual
+  // el resultado no es válido hasta que llega el embedding de la consulta).
+  const resultsCountLabel =
+    searchTerm.trim() && !semanticSearchLoading ? (
+      <Text fz={isGiantUp ? "xl" : isTvUp ? "lg" : "sm"} fw={600} c="dark.6" mb="sm">
+        {t("posterList.resultsCount", { shown: totalResults, total: posters.length })}
+      </Text>
+    ) : null;
 
   return (
     <Container
@@ -245,14 +274,18 @@ export const PosterList = () => {
             <Loader size="lg" />
           </Center>
         ) : currentPagePosters.length === 0 ? (
-          <Center py="xl">
-            <Stack align="center" gap="xs">
-              <IconSearchOff size={32} opacity={0.5} />
-              <Text c="dimmed">{t("posterList.noResults")}</Text>
-            </Stack>
-          </Center>
+          <Box>
+            {resultsCountLabel}
+            <Center py="xl">
+              <Stack align="center" gap="xs">
+                <IconSearchOff size={32} opacity={0.5} />
+                <Text c="dimmed">{t("posterList.noResults")}</Text>
+              </Stack>
+            </Center>
+          </Box>
         ) : (
           <Box>
+            {resultsCountLabel}
             <SimpleGrid cols={posterCols} spacing={{ base: "md", lg: "lg" }}>
               {currentPagePosters.map((poster) => renderPoster(poster))}
             </SimpleGrid>

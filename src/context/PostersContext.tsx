@@ -7,16 +7,22 @@ import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
 import { subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
 import { embedSearchQuery } from "../services/firestore/searchQueryService";
-import { normalizeText } from "../utils/text";
+import { buildSnippet, normalizeSearchText, normalizeText, SearchSnippet } from "../utils/text";
 import { cosineSimilarity } from "../utils/vectorMath";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { PostersContext, EventStatus, SearchMode } from "./usePosters";
 
-// Umbral mínimo de caracteres antes de pedir un embedding de la búsqueda, y
-// de similitud coseno para considerar un paper relevante en modo conceptual.
+// Umbral mínimo de caracteres antes de pedir un embedding de la búsqueda.
 const SEMANTIC_MIN_TERM_LENGTH = 3;
-const SEMANTIC_THRESHOLD = 0.5;
 const SEMANTIC_DEBOUNCE_MS = 400;
+// Los cosenos de gemini-embedding-001 entre una consulta y los papers de un
+// evento caen en una banda angosta (~0.5–0.75, incluso para una consulta sin
+// relación), así que un umbral bajo deja pasar todo. Un paper es relevante en
+// modo conceptual si supera el piso absoluto (descarta consultas sin señal) Y
+// está a no más de SEMANTIC_RELATIVE_WINDOW del mejor puntaje de esa consulta
+// (adapta el corte: las consultas cortas puntúan más bajo que las largas).
+const SEMANTIC_THRESHOLD = 0.62;
+const SEMANTIC_RELATIVE_WINDOW = 0.06;
 // Puntajes de búsqueda exacta (título > autor > cuerpo del PDF) y el bonus que
 // garantiza, en modo "Ambas", que un match exacto siempre supere a uno solo conceptual.
 const EXACT_TITLE_SCORE = 3;
@@ -152,26 +158,51 @@ export const PostersProvider: React.FC<{
     : "not-found";
   const loading = eventStatus === "loading" || !postersLoaded || !categoriesLoaded;
 
+  // Texto de cada PDF ya indexado: `text` con los espacios colapsados (es el que se muestra en el
+  // fragmento) y `folded` en minúsculas y sin tildes (contra el que se compara). Se calcula al
+  // cambiar el índice y no en cada tecla, porque la búsqueda exacta lo compara con todos los papers.
+  const bodyByPaperId = useMemo(() => {
+    const bodies = new Map<string, { text: string; folded: string }>();
+    searchIndexByPaperId.forEach((index, paperId) => {
+      if (index.status !== "ready") return;
+      const text = index.extractedText.replace(/\s+/g, " ").trim();
+      bodies.set(paperId, { text, folded: normalizeText(text) });
+    });
+    return bodies;
+  }, [searchIndexByPaperId]);
+
   const { filteredPosters, categoryCounts } = useMemo(() => {
-    const term = normalizeText(searchTerm);
+    const term = normalizeSearchText(searchTerm);
 
     // Título > autor > cuerpo del PDF (solo si ya está indexado). Devuelve 0
     // si no hay match exacto en ningún campo.
     const exactScore = (paper: Paper): number => {
-      if (normalizeText(paper.title).includes(term)) return EXACT_TITLE_SCORE;
-      if (paper.authors.some((author) => normalizeText(author).includes(term))) return EXACT_AUTHOR_SCORE;
-      const index = searchIndexByPaperId.get(paper.id);
-      if (index?.status === "ready" && normalizeText(index.extractedText).includes(term)) return EXACT_BODY_SCORE;
+      if (normalizeSearchText(paper.title).includes(term)) return EXACT_TITLE_SCORE;
+      if (paper.authors.some((author) => normalizeSearchText(author).includes(term))) return EXACT_AUTHOR_SCORE;
+      if (bodyByPaperId.get(paper.id)?.folded.includes(term)) return EXACT_BODY_SCORE;
       return 0;
     };
 
-    // Similitud coseno contra el embedding del paper (null si el paper aún
-    // no tiene embedding listo, o si todavía no hay embedding de la consulta).
+    // Similitud coseno contra el embedding de cada paper, calculada una sola
+    // vez. Quedan fuera los papers sin embedding listo (y todos, mientras no
+    // haya embedding de la consulta). El mejor puntaje se toma sobre todo el
+    // evento, sin filtros de categoría/tema, para que el corte no cambie al filtrar.
+    const semanticScores = new Map<string, number>();
+    if (queryEmbedding) {
+      posters.forEach((paper) => {
+        const index = searchIndexByPaperId.get(paper.id);
+        if (index?.status === "ready" && index.embedding) {
+          semanticScores.set(paper.id, cosineSimilarity(queryEmbedding, index.embedding));
+        }
+      });
+    }
+    const bestSemanticScore = Math.max(0, ...semanticScores.values());
+    const semanticCutoff = Math.max(SEMANTIC_THRESHOLD, bestSemanticScore - SEMANTIC_RELATIVE_WINDOW);
+
+    // Puntaje conceptual del paper, o null si no llega al corte de la consulta.
     const semanticScore = (paper: Paper): number | null => {
-      if (!queryEmbedding) return null;
-      const index = searchIndexByPaperId.get(paper.id);
-      if (index?.status !== "ready" || !index.embedding) return null;
-      return cosineSimilarity(queryEmbedding, index.embedding);
+      const score = semanticScores.get(paper.id);
+      return score !== undefined && score >= semanticCutoff ? score : null;
     };
 
     // null = el paper no matchea la búsqueda actual; un número = su puntaje
@@ -182,16 +213,12 @@ export const PostersProvider: React.FC<{
         const score = exactScore(paper);
         return score > 0 ? score : null;
       }
-      if (searchMode === "semantic") {
-        const score = semanticScore(paper);
-        return score !== null && score >= SEMANTIC_THRESHOLD ? score : null;
-      }
+      if (searchMode === "semantic") return semanticScore(paper);
       // "both": un match exacto siempre gana (bonus fijo por encima del máximo
       // posible de similitud coseno), si no hay exacto se prueba lo conceptual.
       const eScore = exactScore(paper);
       if (eScore > 0) return EXACT_MATCH_BONUS + eScore;
-      const sScore = semanticScore(paper);
-      return sScore !== null && sScore >= SEMANTIC_THRESHOLD ? sScore : null;
+      return semanticScore(paper);
     };
 
     const matches = (paper: Paper, ignoreCategory: boolean) => {
@@ -220,7 +247,7 @@ export const PostersProvider: React.FC<{
       filteredPosters: filtered,
       categoryCounts: counts,
     };
-  }, [posters, searchTerm, selectedCategory, selectedTheme, searchMode, searchIndexByPaperId, queryEmbedding]);
+  }, [posters, searchTerm, selectedCategory, selectedTheme, searchMode, searchIndexByPaperId, bodyByPaperId, queryEmbedding]);
 
   const categories = useMemo(
     () => categoryList.map((c) => ({ ...c, count: categoryCounts.get(c.id) ?? 0 })),
@@ -237,6 +264,20 @@ export const PostersProvider: React.FC<{
 
   const getCategoryName = (categoryId: string | null) =>
     categoryList.find((c) => c.id === categoryId)?.name ?? "";
+
+  const highlightTerm = searchMode === "semantic" ? "" : searchTerm;
+
+  const getBodySnippet = (paperId: string): SearchSnippet | null => {
+    const term = normalizeSearchText(highlightTerm);
+    if (!term) return null;
+    const paper = posters.find((p) => p.id === paperId);
+    if (!paper) return null;
+    // Título y autores ya se resaltan en la tarjeta; el fragmento solo hace falta si el match está en el cuerpo.
+    if (normalizeSearchText(paper.title).includes(term)) return null;
+    if (paper.authors.some((author) => normalizeSearchText(author).includes(term))) return null;
+    const body = bodyByPaperId.get(paperId);
+    return body ? buildSnippet(body.text, term) : null;
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredPosters.length / itemsPerPage));
   const currentPage = Math.min(page, totalPages);
@@ -257,6 +298,9 @@ export const PostersProvider: React.FC<{
         searchMode,
         setSearchMode,
         semanticSearchLoading,
+        totalResults: filteredPosters.length,
+        highlightTerm,
+        getBodySnippet,
         loading,
         page: currentPage,
         setPage,

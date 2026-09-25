@@ -24,6 +24,12 @@ export default function ScreensaverOverlay({
     wasIdle.current = isIdle;
   }, [isIdle]);
 
+  // Un elemento en pantalla completa nativa (el visor de PDF de PosterDetail) se dibuja por
+  // encima de todo, incluido este overlay: se sale de ahí para que el protector sea visible.
+  useEffect(() => {
+    if (isIdle && document.fullscreenElement) void document.exitFullscreen();
+  }, [isIdle]);
+
   const current = items[index % items.length];
 
   // Las fotos avanzan solas tras photoDurationSeconds; los videos avanzan con onEnded.
