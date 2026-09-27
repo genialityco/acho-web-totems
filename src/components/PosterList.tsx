@@ -17,6 +17,7 @@ import {
   ActionIcon,
   Center,
   Pagination,
+  Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { Link } from "react-router-dom";
@@ -26,7 +27,14 @@ import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { HighlightedText } from "./HighlightedText";
 import { MatchExplanation } from "./MatchExplanation";
-import { IconLock, IconLockAccessOff, IconSearchOff } from "@tabler/icons-react";
+import {
+  IconCalendarEvent,
+  IconId,
+  IconLock,
+  IconLockAccessOff,
+  IconMapPin,
+  IconSearchOff,
+} from "@tabler/icons-react";
 import "./PosterList.css";
 
 export const PosterList = () => {
@@ -139,6 +147,36 @@ export const PosterList = () => {
             <Text size="sm" c="dimmed">
               {poster.theme}
             </Text>
+          )}
+          {(poster.year || poster.country || poster.identificationCode) && (
+            <Group gap={6} wrap="wrap">
+              {poster.year && (
+                <Tooltip label={t("posterList.yearLabel")}>
+                  <Badge
+                    variant="light"
+                    color="gray"
+                    size="sm"
+                    leftSection={<IconCalendarEvent size={12} />}
+                  >
+                    {poster.year}
+                  </Badge>
+                </Tooltip>
+              )}
+              {poster.country && (
+                <Tooltip label={t("posterList.countryLabel")}>
+                  <Badge variant="light" color="gray" size="sm" leftSection={<IconMapPin size={12} />}>
+                    {poster.country}
+                  </Badge>
+                </Tooltip>
+              )}
+              {poster.identificationCode && (
+                <Tooltip label={t("posterList.identificationCodeLabel")}>
+                  <Badge variant="light" color="gray" size="sm" leftSection={<IconId size={12} />}>
+                    {poster.identificationCode}
+                  </Badge>
+                </Tooltip>
+              )}
+            </Group>
           )}
           <Text size="sm" c="dimmed">
             {t("posterList.authorsLabel")}{" "}

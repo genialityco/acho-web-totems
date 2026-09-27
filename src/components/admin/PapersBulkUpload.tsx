@@ -4,7 +4,17 @@ import { isHttpUrl, normalizeText } from "../../utils/text";
 import BulkUploadPanel, { PreviewRow } from "./BulkUploadPanel";
 import { getCell, RawRow } from "./bulkUtils";
 
-const HEADERS = ["title", "authors", "institution", "categoryName", "theme", "urlPdf"];
+const HEADERS = [
+  "title",
+  "authors",
+  "institution",
+  "categoryName",
+  "theme",
+  "urlPdf",
+  "year",
+  "country",
+  "identificationCode",
+];
 
 export default function PapersBulkUpload() {
   const { eventSlug, categories, papers } = useAdminEvent();
@@ -16,11 +26,17 @@ export default function PapersBulkUpload() {
 
     return rawRows.map((raw) => {
       const cells = HEADERS.map((header) => getCell(raw, header));
-      const [title, authors, institution, categoryName, theme, urlPdf] = cells;
+      const [title, authors, institution, categoryName, theme, urlPdf, yearRaw, country, identificationCode] = cells;
       const error = (message: string): PreviewRow<PaperInput> => ({ cells, status: "ERROR", message });
 
       if (!title) return error("Falta el título");
       if (!isHttpUrl(urlPdf)) return error("urlPdf debe ser una URL http(s) válida");
+
+      let year: number | null = null;
+      if (yearRaw) {
+        year = Number(yearRaw);
+        if (!Number.isInteger(year)) return error("year debe ser un número entero (ej. 2026)");
+      }
 
       let categoryId: string | null = null;
       if (categoryName) {
@@ -48,6 +64,9 @@ export default function PapersBulkUpload() {
           urlPdf,
           categoryId,
           theme: theme || null,
+          year,
+          country: country || null,
+          identificationCode: identificationCode || null,
         },
       };
     });
@@ -56,7 +75,7 @@ export default function PapersBulkUpload() {
   return (
     <BulkUploadPanel
       title="Carga masiva de papers"
-      hint="Una fila por paper. Separa varios autores con punto y coma (;). categoryName debe coincidir con el nombre de una categoría ya creada (o dejarse vacío). Los papers con un título que ya existe se omiten, así que cargar dos veces el mismo archivo no duplica nada."
+      hint="Una fila por paper. Separa varios autores con punto y coma (;). categoryName debe coincidir con el nombre de una categoría ya creada (o dejarse vacío). year, country e identificationCode son opcionales. Los papers con un título que ya existe se omiten, así que cargar dos veces el mismo archivo no duplica nada."
       headers={HEADERS}
       templateFileName="papers_template.xlsx"
       reportFileName="papers_informe.xlsx"

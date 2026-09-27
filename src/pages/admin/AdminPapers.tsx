@@ -10,6 +10,7 @@ import {
   FileInput,
   Group,
   Modal,
+  NumberInput,
   Pagination,
   Progress,
   Select,
@@ -99,6 +100,9 @@ function PaperFormModal({
   const [file, setFile] = useState<File | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [theme, setTheme] = useState("");
+  const [year, setYear] = useState<number | "">("");
+  const [country, setCountry] = useState("");
+  const [identificationCode, setIdentificationCode] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +119,9 @@ function PaperFormModal({
     setFile(null);
     setCategoryId(paper?.categoryId ?? null);
     setTheme(paper?.theme ?? "");
+    setYear(paper?.year ?? "");
+    setCountry(paper?.country ?? "");
+    setIdentificationCode(paper?.identificationCode ?? "");
     setError(null);
     setUploadProgress(null);
   }, [paper]);
@@ -141,6 +148,9 @@ function PaperFormModal({
         urlPdf,
         categoryId,
         theme: theme.trim() || null,
+        year: year === "" ? null : year,
+        country: country.trim() || null,
+        identificationCode: identificationCode.trim() || null,
       });
       if (file && previousUrl && previousUrl !== urlPdf) {
         // El paper ya quedó guardado con el archivo nuevo; el anterior es basura en Storage.
@@ -212,6 +222,24 @@ function PaperFormModal({
           value={theme}
           onChange={setTheme}
         />
+        <Group grow>
+          <NumberInput
+            label="Año"
+            placeholder="Ej. 2026"
+            value={year}
+            onChange={(v) => setYear(typeof v === "number" ? v : "")}
+            min={1900}
+            max={2100}
+            clampBehavior="strict"
+            hideControls
+          />
+          <TextInput label="País" value={country} onChange={(e) => setCountry(e.currentTarget.value)} />
+          <TextInput
+            label="Código de identificación"
+            value={identificationCode}
+            onChange={(e) => setIdentificationCode(e.currentTarget.value)}
+          />
+        </Group>
         {error && <Alert color="red">{error}</Alert>}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose} disabled={saving}>

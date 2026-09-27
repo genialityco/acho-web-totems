@@ -18,6 +18,9 @@ export interface Paper {
   urlPdf: string;
   categoryId: string | null;
   theme: string | null;
+  year: number | null;
+  country: string | null;
+  identificationCode: string | null;
   voteCount: number;
 }
 
@@ -53,6 +56,9 @@ export const subscribePapers = (
           urlPdf: asString(data.urlPdf),
           categoryId: asString(data.categoryId) || null,
           theme: asString(data.theme) || null,
+          year: typeof data.year === "number" ? data.year : null,
+          country: asString(data.country) || null,
+          identificationCode: asString(data.identificationCode) || null,
           voteCount: typeof data.voteCount === "number" ? data.voteCount : 0,
         };
       });
