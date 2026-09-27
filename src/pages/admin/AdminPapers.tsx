@@ -230,7 +230,6 @@ function PaperFormModal({
             onChange={(v) => setYear(typeof v === "number" ? v : "")}
             min={1900}
             max={2100}
-            clampBehavior="strict"
             hideControls
           />
           <TextInput label="País" value={country} onChange={(e) => setCountry(e.currentTarget.value)} />

@@ -2,6 +2,7 @@ import { Center, Loader, Text } from "@mantine/core";
 import { Outlet, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PublicShell from "../components/PublicShell";
+import ScreensaverManualTrigger from "../components/ScreensaverManualTrigger";
 import ScreensaverOverlay from "../components/ScreensaverOverlay";
 import { PostersProvider } from "../context/PostersContext";
 import { usePosters } from "../context/usePosters";
@@ -47,11 +48,14 @@ function EventGate() {
         {content}
       </PublicShell>
       {eventStatus === "ready" && event?.screensaverEnabled && screensaverItems.length > 0 && (
-        <ScreensaverOverlay
-          items={screensaverItems}
-          idleSeconds={event.screensaverIdleSeconds}
-          photoDurationSeconds={event.screensaverPhotoDurationSeconds}
-        />
+        <>
+          <ScreensaverOverlay
+            items={screensaverItems}
+            idleSeconds={event.screensaverIdleSeconds}
+            photoDurationSeconds={event.screensaverPhotoDurationSeconds}
+          />
+          <ScreensaverManualTrigger />
+        </>
       )}
     </>
   );
