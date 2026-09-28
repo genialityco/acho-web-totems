@@ -28,3 +28,11 @@ export const trackPosterView = (eventSlug: string, paperId: string) =>
 
 export const trackPosterDownload = (eventSlug: string, paperId: string) =>
   incrementPaperMetric({ eventSlug, paperId, metric: "download" });
+
+const resetPaperMetricsCallable = httpsCallable<
+  { eventSlug: string },
+  { ok: boolean; papersReset: number }
+>(functions, "resetPaperMetrics");
+
+export const resetPaperMetrics = async (eventSlug: string) =>
+  (await resetPaperMetricsCallable({ eventSlug })).data;

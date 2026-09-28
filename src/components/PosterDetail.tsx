@@ -43,8 +43,14 @@ const PosterDetail = () => {
   const votingClosed = event?.votingOpen === false;
   const isAnonymousVoting = event?.voteMode === "anonymous";
 
+  // Ref (no state) a propósito: solo debe contar una vez por visita al póster. Si dependiera
+  // de la identidad del objeto `poster`, el propio incremento de viewCount dispara un nuevo
+  // snapshot de `papers` con un objeto Paper nuevo para ese id, lo que re-ejecutaría el efecto
+  // y volvería a contar en bucle mientras la pestaña siga abierta.
+  const trackedPosterIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!poster) return;
+    if (!poster || trackedPosterIdRef.current === poster.id) return;
+    trackedPosterIdRef.current = poster.id;
     trackEvent("poster_view", {
       event_slug: eventSlug,
       paper_id: poster.id,

@@ -170,7 +170,7 @@ function PaperFormModal({
       title={paper ? "Editar paper" : "Nuevo paper"}
       size="lg"
       centered
-      closeOnClickOutside={!saving}
+      closeOnClickOutside={false}
       withCloseButton={!saving}
     >
       <Stack>

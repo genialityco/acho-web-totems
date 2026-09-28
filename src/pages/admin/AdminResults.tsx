@@ -18,6 +18,7 @@ import { usePagination } from "../../components/admin/usePagination";
 import { useAdminEvent } from "../../context/useAdminEvent";
 import { errorMessage } from "../../services/firestore/batch";
 import { resetVotes } from "../../services/firestore/voteService";
+import { resetPaperMetrics } from "../../services/firestore/paperMetricsService";
 
 const CONFIRM_WORD = "REINICIAR";
 
@@ -39,6 +40,11 @@ export default function AdminResults() {
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetResult, setResetResult] = useState<string | null>(null);
+  const [metricsResetOpen, setMetricsResetOpen] = useState(false);
+  const [metricsConfirmText, setMetricsConfirmText] = useState("");
+  const [resettingMetrics, setResettingMetrics] = useState(false);
+  const [metricsResetError, setMetricsResetError] = useState<string | null>(null);
+  const [metricsResetResult, setMetricsResetResult] = useState<string | null>(null);
 
   const ranking = useMemo(
     () =>
@@ -90,6 +96,26 @@ export default function AdminResults() {
     }
   };
 
+  const openMetricsReset = () => {
+    setMetricsConfirmText("");
+    setMetricsResetError(null);
+    setMetricsResetOpen(true);
+  };
+
+  const handleResetMetrics = async () => {
+    setResettingMetrics(true);
+    setMetricsResetError(null);
+    try {
+      const { papersReset } = await resetPaperMetrics(eventSlug);
+      setMetricsResetResult(`Se reiniciaron las vistas y descargas de ${papersReset} papers.`);
+      setMetricsResetOpen(false);
+    } catch (e) {
+      setMetricsResetError(errorMessage(e));
+    } finally {
+      setResettingMetrics(false);
+    }
+  };
+
   return (
     <Stack gap="lg">
       <SimpleGrid cols={{ base: 2, sm: 3 }}>
@@ -106,13 +132,23 @@ export default function AdminResults() {
           {resetResult}
         </Alert>
       )}
+      {metricsResetResult && (
+        <Alert color="green" withCloseButton onClose={() => setMetricsResetResult(null)}>
+          {metricsResetResult}
+        </Alert>
+      )}
 
       <Stack gap="sm">
         <Group justify="space-between">
           <Title order={5}>Ranking de papers</Title>
-          <Button color="red" variant="outline" leftSection={<IconRefresh size={16} />} onClick={openReset}>
-            Reiniciar votos
-          </Button>
+          <Group gap="xs">
+            <Button color="red" variant="outline" leftSection={<IconRefresh size={16} />} onClick={openMetricsReset}>
+              Reiniciar vistas y descargas
+            </Button>
+            <Button color="red" variant="outline" leftSection={<IconRefresh size={16} />} onClick={openReset}>
+              Reiniciar votos
+            </Button>
+          </Group>
         </Group>
         {ranking.length === 0 ? (
           <Text c="dimmed">Este evento aún no tiene papers.</Text>
@@ -204,6 +240,25 @@ export default function AdminResults() {
           label={`Escribe ${CONFIRM_WORD} para confirmar`}
           value={confirmText}
           onChange={(e) => setConfirmText(e.currentTarget.value)}
+        />
+      </ConfirmModal>
+
+      <ConfirmModal
+        opened={metricsResetOpen}
+        title="Reiniciar vistas y descargas"
+        message={`Las vistas (${totalViews}) y descargas (${totalDownloads}) de todos los papers de este evento volverán a 0. No afecta los votos. Esta acción no se puede deshacer.`}
+        confirmLabel="Reiniciar vistas y descargas"
+        confirmDisabled={metricsConfirmText !== CONFIRM_WORD}
+        loading={resettingMetrics}
+        error={metricsResetError}
+        onConfirm={handleResetMetrics}
+        onClose={() => setMetricsResetOpen(false)}
+      >
+        <TextInput
+          mt="md"
+          label={`Escribe ${CONFIRM_WORD} para confirmar`}
+          value={metricsConfirmText}
+          onChange={(e) => setMetricsConfirmText(e.currentTarget.value)}
         />
       </ConfirmModal>
     </Stack>

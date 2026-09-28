@@ -186,3 +186,42 @@ export const incrementPaperMetric = onCall(async (request) => {
   await paperRef.update({ [field]: FieldValue.increment(1) });
   return { ok: true };
 });
+
+interface ResetPaperMetricsRequest {
+  eventSlug?: string;
+}
+
+// Reinicia a 0 las vistas y descargas de todos los papers de un evento (admin-only).
+// Independiente de resetVotes: no toca votes/ ni voteCount.
+export const resetPaperMetrics = onCall(async (request) => {
+  await assertIsAdmin(request.auth?.uid);
+
+  const { eventSlug } = request.data as ResetPaperMetricsRequest;
+  if (!eventSlug) {
+    throw new HttpsError("invalid-argument", "Falta el evento.");
+  }
+
+  const papersSnap = await db.collection(`events/${eventSlug}/papers`).get();
+
+  const batches: WriteBatch[] = [];
+  let batch = db.batch();
+  let opCount = 0;
+
+  const addOp = (apply: (b: WriteBatch) => void) => {
+    apply(batch);
+    opCount += 1;
+    if (opCount >= 450) {
+      batches.push(batch);
+      batch = db.batch();
+      opCount = 0;
+    }
+  };
+
+  papersSnap.docs.forEach((d) => addOp((b) => b.update(d.ref, { viewCount: 0, downloadCount: 0 })));
+  if (opCount > 0) {
+    batches.push(batch);
+  }
+
+  await Promise.all(batches.map((b) => b.commit()));
+  return { ok: true, papersReset: papersSnap.size };
+});
