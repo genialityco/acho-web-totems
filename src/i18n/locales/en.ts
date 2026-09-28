@@ -53,6 +53,7 @@ const en: typeof es = {
     idNumberPlaceholder: "Enter your ID number",
     confirmVote: "Confirm Vote",
     idNumberRequired: "Please enter an ID number.",
+    anonymousVoteNotice: "Your vote is anonymous: no personal information will be requested.",
     voterNotFound: "We couldn't find a user with this ID number.",
     votingClosedError: "Voting for this event is closed.",
     alreadyVotedFor: "You have already voted for the poster: {{title}}.",

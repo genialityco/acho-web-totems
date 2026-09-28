@@ -50,6 +50,7 @@ const es = {
     idNumberPlaceholder: "Ingresa tu número de cédula",
     confirmVote: "Confirmar Voto",
     idNumberRequired: "Por favor, ingresa un número de cédula.",
+    anonymousVoteNotice: "Tu voto es anónimo: no se pedirá ningún dato personal.",
     voterNotFound: "No se encontró un usuario con esta cédula.",
     votingClosedError: "La votación para este evento está cerrada.",
     alreadyVotedFor: "Ya has votado por el póster: {{title}}.",

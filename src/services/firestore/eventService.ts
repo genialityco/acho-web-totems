@@ -28,12 +28,23 @@ export interface EventInfo {
   // Botón "¿Por qué este resultado?" en los resultados de la búsqueda conceptual (ver
   // MatchExplanation); apagado por defecto porque cada explicación es una llamada a Gemini.
   searchExplanationsEnabled: boolean;
-  // Si es true (default, preserva el comportamiento histórico), castVote exige que la cédula
-  // exista y esté activa en voters/{idNumber}. Si es false, cualquier cédula puede votar (una
-  // sola vez, ya que votes/{idNumber} sigue siendo la clave de deduplicación) sin necesidad de
-  // haber sido precargada en "Votantes".
-  voteRequiresRegistration: boolean;
+  // "registered" (default): castVote exige que la cédula exista y esté activa en voters/{idNumber}.
+  // "open": cualquier cédula puede votar (una sola vez, votes/{idNumber} sigue siendo la clave de
+  // deduplicación) sin necesidad de haber sido precargada en "Votantes".
+  // "anonymous": no se pide cédula; el cliente genera un id aleatorio y lo guarda en localStorage
+  // (ver utils/anonymousVoter.ts), así que la deduplicación es por navegador/dispositivo, no por persona.
+  voteMode: VoteMode;
 }
+
+export type VoteMode = "registered" | "open" | "anonymous";
+
+const VOTE_MODES: readonly VoteMode[] = ["registered", "open", "anonymous"];
+
+// Compat: antes de añadir el modo "anonymous" existía solo el booleano voteRequiresRegistration.
+const toVoteMode = (data: DocumentData): VoteMode => {
+  if (VOTE_MODES.includes(data.voteMode)) return data.voteMode;
+  return data.voteRequiresRegistration === false ? "open" : "registered";
+};
 
 const optionalUrl = (value: unknown) => (typeof value === "string" && value ? value : null);
 
@@ -53,7 +64,7 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
     DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS
   ),
   searchExplanationsEnabled: data.searchExplanationsEnabled === true,
-  voteRequiresRegistration: data.voteRequiresRegistration !== false,
+  voteMode: toVoteMode(data),
 });
 
 // Suscripción en vivo al evento; entrega null si el slug no existe.
@@ -104,7 +115,7 @@ export const updateEvent = (
       | "screensaverIdleSeconds"
       | "screensaverPhotoDurationSeconds"
       | "searchExplanationsEnabled"
-      | "voteRequiresRegistration"
+      | "voteMode"
     >
   >
 ) => updateDoc(doc(db, "events", slug), changes);

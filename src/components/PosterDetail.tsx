@@ -17,6 +17,7 @@ import { castVote, VoteError } from "../services/firestore/voteService";
 import { usePosters } from "../context/usePosters";
 import { useElementFullscreen } from "../hooks/useElementFullscreen";
 import { slugify } from "../utils/text";
+import { getAnonymousVoterId } from "../utils/anonymousVoter";
 import "./PosterDetail.css";
 
 const pdfFileName = (title: string) => `${slugify(title).slice(0, 100) || "poster"}.pdf`;
@@ -38,6 +39,7 @@ const PosterDetail = () => {
 
   const currentIndex = currentPagePosters.findIndex((p) => p.id === id);
   const votingClosed = event?.votingOpen === false;
+  const isAnonymousVoting = event?.voteMode === "anonymous";
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -99,8 +101,8 @@ const PosterDetail = () => {
   };
 
   const handleConfirmVote = async () => {
-    const cedula = idNumber.trim();
-    if (!cedula) {
+    const voterId = isAnonymousVoting ? getAnonymousVoterId(eventSlug) : idNumber.trim();
+    if (!isAnonymousVoting && !voterId) {
       setVoteError(t("posterDetail.idNumberRequired"));
       return;
     }
@@ -110,7 +112,7 @@ const PosterDetail = () => {
     setVoteError(null);
     setShowVotedInfo(false);
     try {
-      await castVote({ eventSlug, idNumber: cedula, paperId: poster.id });
+      await castVote({ eventSlug, idNumber: voterId, paperId: poster.id });
       setIsVoteModalOpen(false);
       setIdNumber("");
       setShowModalSuccess(true);
@@ -250,13 +252,17 @@ const PosterDetail = () => {
         onClose={() => setIsVoteModalOpen(false)}
         title={t("posterDetail.voteModalTitle")}
       >
-        <TextInput
-          label={t("posterDetail.idNumberLabel")}
-          placeholder={t("posterDetail.idNumberPlaceholder")}
-          size="lg"
-          value={idNumber}
-          onChange={(e) => setIdNumber(e.currentTarget.value)}
-        />
+        {isAnonymousVoting ? (
+          <Text c="dimmed">{t("posterDetail.anonymousVoteNotice")}</Text>
+        ) : (
+          <TextInput
+            label={t("posterDetail.idNumberLabel")}
+            placeholder={t("posterDetail.idNumberPlaceholder")}
+            size="lg"
+            value={idNumber}
+            onChange={(e) => setIdNumber(e.currentTarget.value)}
+          />
+        )}
         <Group justify="flex-start" mt="md">
           <Button size="lg" onClick={handleConfirmVote} loading={isVoting}>
             {t("posterDetail.confirmVote")}

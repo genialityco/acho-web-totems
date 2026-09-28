@@ -14,6 +14,10 @@ interface CastVoteRequest {
   paperId?: string;
 }
 
+type VoteMode = "registered" | "open" | "anonymous";
+const isVoteMode = (value: unknown): value is VoteMode =>
+  value === "registered" || value === "open" || value === "anonymous";
+
 // Emite un voto de forma atómica: valida evento/votante/póster y evita votos duplicados.
 export const castVote = onCall(async (request) => {
   const { eventSlug, idNumber, paperId } = request.data as CastVoteRequest;
@@ -41,11 +45,16 @@ export const castVote = onCall(async (request) => {
     if (eventData?.votingOpen === false) {
       throw new HttpsError("failed-precondition", "La votación para este evento está cerrada.");
     }
-    // Por defecto (campo ausente o true) la cédula debe existir y estar activa en el roster
-    // precargado. Si el admin desactivó el registro, cualquier cédula puede votar; votes/{idNumber}
-    // sigue evitando que la misma cédula vote dos veces.
-    const requiresRegistration = eventData?.voteRequiresRegistration !== false;
-    if (requiresRegistration && (!voterSnap.exists || voterSnap.data()?.active !== true)) {
+    // "registered" (default, incl. eventos creados antes de existir voteMode): la cédula debe
+    // existir y estar activa en el roster precargado. "open"/"anonymous" se saltan esa validación
+    // (la diferencia entre ambas es puramente del cliente: pedir cédula o generar un id anónimo);
+    // en los dos casos votes/{idNumber} sigue evitando un segundo voto con el mismo id.
+    const voteMode = isVoteMode(eventData?.voteMode)
+      ? eventData.voteMode
+      : eventData?.voteRequiresRegistration === false
+        ? "open"
+        : "registered";
+    if (voteMode === "registered" && (!voterSnap.exists || voterSnap.data()?.active !== true)) {
       throw new HttpsError(
         "not-found",
         "No se encontró un usuario con esta cédula. Regístrate en la App para poder votar."

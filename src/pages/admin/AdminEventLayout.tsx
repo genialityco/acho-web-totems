@@ -13,6 +13,7 @@ import {
   Loader,
   Modal,
   Progress,
+  SegmentedControl,
   Stack,
   Switch,
   Tabs,
@@ -24,7 +25,7 @@ import {
 import { IconArrowLeft, IconExternalLink, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react";
 import { AdminEventProvider } from "../../context/AdminEventContext";
 import { useAdminEvent } from "../../context/useAdminEvent";
-import { EventInfo, updateEvent } from "../../services/firestore/eventService";
+import { EventInfo, updateEvent, VoteMode } from "../../services/firestore/eventService";
 import { errorMessage } from "../../services/firestore/batch";
 import { deleteEventImage, MAX_EVENT_IMAGE_BYTES, uploadEventImage } from "../../services/storageService";
 
@@ -252,14 +253,20 @@ function EventFrame() {
     }
   };
 
-  const toggleVoteRequiresRegistration = async (requiresRegistration: boolean) => {
+  const updateVoteMode = async (mode: VoteMode) => {
     setError(null);
     try {
-      await updateEvent(eventSlug, { voteRequiresRegistration: requiresRegistration });
+      await updateEvent(eventSlug, { voteMode: mode });
     } catch (e) {
       console.error(e);
-      setError("No se pudo cambiar el modo de registro para votar.");
+      setError("No se pudo cambiar el modo de votación.");
     }
+  };
+
+  const voteModeDescription: Record<VoteMode, string> = {
+    registered: 'Solo pueden votar cédulas precargadas y activas en "Votantes".',
+    open: 'Cualquier número de identificación puede votar (una vez por número), sin necesidad de estar en "Votantes".',
+    anonymous: "No se pide ningún dato: el voto queda asociado al navegador (una vez por dispositivo/navegador).",
   };
 
   const toggleSearchExplanations = async (enabled: boolean) => {
@@ -308,16 +315,18 @@ function EventFrame() {
             </Text>
           </Stack>
           <Stack gap={2} align="flex-end">
-            <Switch
-              size="md"
-              checked={event.voteRequiresRegistration}
-              onChange={(e) => void toggleVoteRequiresRegistration(e.currentTarget.checked)}
-              label={event.voteRequiresRegistration ? "Votación con registro" : "Votación sin registro"}
+            <SegmentedControl
+              size="xs"
+              value={event.voteMode}
+              onChange={(value) => void updateVoteMode(value as VoteMode)}
+              data={[
+                { label: "Con registro", value: "registered" },
+                { label: "Sin registro", value: "open" },
+                { label: "Anónimo", value: "anonymous" },
+              ]}
             />
             <Text size="xs" c="dimmed" ta="right" maw={320}>
-              {event.voteRequiresRegistration
-                ? 'Solo pueden votar cédulas precargadas y activas en "Votantes".'
-                : 'Cualquier número de identificación puede votar (una vez por número), sin necesidad de estar en "Votantes".'}
+              {voteModeDescription[event.voteMode]}
             </Text>
           </Stack>
           <Stack gap={2} align="flex-end">
