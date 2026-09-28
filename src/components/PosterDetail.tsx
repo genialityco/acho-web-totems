@@ -6,7 +6,6 @@ import {
   Loader,
   Modal,
   Group,
-  Stack,
   TextInput,
   Notification,
   Text,
@@ -241,21 +240,24 @@ const PosterDetail = () => {
         className={isOverlay ? "posterViewer posterViewer--overlay" : "posterViewer"}
       >
         <Group className="posterViewerToolbar" justify="flex-end" gap="xs">
-          {/* El href es el respaldo (clic con modificador, o si handleDownload no puede leer el archivo). */}
-          <Button
-            component="a"
-            href={poster.urlPdf}
-            download={pdfFileName(poster.title)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleDownload}
-            loading={isDownloading}
-            size="xs"
-            variant="default"
-            leftSection={<IconDownload size={16} />}
-          >
-            {t("posterDetail.download")}
-          </Button>
+          {/* El href es el respaldo (clic con modificador, o si handleDownload no puede leer el archivo).
+              Solo descarga el PDF: si el póster tiene video, este se guarda con los controles nativos. */}
+          {poster.urlPdf && (
+            <Button
+              component="a"
+              href={poster.urlPdf}
+              download={pdfFileName(poster.title)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleDownload}
+              loading={isDownloading}
+              size="xs"
+              variant="default"
+              leftSection={<IconDownload size={16} />}
+            >
+              {t("posterDetail.download")}
+            </Button>
+          )}
           <Button
             size="xs"
             variant="default"
@@ -265,22 +267,29 @@ const PosterDetail = () => {
             {isFullscreen ? t("posterDetail.exitFullscreen") : t("posterDetail.fullscreen")}
           </Button>
         </Group>
-        <iframe
-          ref={iframeRef}
-          className="posterViewerFrame"
-          src={`https://genpdfviewer.netlify.app/?file=${encodeURIComponent(poster.urlPdf)}`}
-          title={t("posterDetail.posterIframeTitle")}
-          allowFullScreen
-        />
+        {/* El video es el contenido principal cuando existe (no requiere PDF); si no hay
+            video se muestra el PDF como antes. */}
+        {poster.urlVideo ? (
+          <video
+            key={poster.urlVideo}
+            className="posterViewerFrame posterVideo"
+            controls
+            src={poster.urlVideo}
+          />
+        ) : poster.urlPdf ? (
+          <iframe
+            ref={iframeRef}
+            className="posterViewerFrame"
+            src={`https://genpdfviewer.netlify.app/?file=${encodeURIComponent(poster.urlPdf)}`}
+            title={t("posterDetail.posterIframeTitle")}
+            allowFullScreen
+          />
+        ) : (
+          <Flex align="center" justify="center" className="posterViewerFrame">
+            <Text c="dimmed">{t("posterDetail.noContent")}</Text>
+          </Flex>
+        )}
       </div>
-
-      {poster.urlVideo && (
-        <Stack gap={4} mt="md">
-          <Text fw={600}>{t("posterDetail.videoSectionTitle")}</Text>
-          {/* key para que el <video> se recargue si el visitante cambia de póster sin desmontar este bloque */}
-          <video key={poster.urlVideo} className="posterVideo" controls src={poster.urlVideo} />
-        </Stack>
-      )}
 
       {/* Modal para votar */}
       <Modal

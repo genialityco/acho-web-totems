@@ -142,7 +142,9 @@ function PaperFormModal({
 
   const handleSubmit = async () => {
     if (!title.trim()) return setError("El título es obligatorio.");
-    if (!file && !paper?.urlPdf) return setError("Selecciona el archivo PDF del paper.");
+    const willHavePdf = !!file || !!paper?.urlPdf;
+    const willHaveVideo = !!videoFile || (!!paper?.urlVideo && !removeVideo);
+    if (!willHavePdf && !willHaveVideo) return setError("Selecciona un archivo PDF o un video.");
     if (file && file.type !== "application/pdf") return setError("El archivo debe ser un PDF.");
     if (file && file.size > MAX_PAPER_FILE_BYTES) return setError("El archivo no puede superar los 30 MB.");
     if (videoFile && !videoFile.type.startsWith("video/")) return setError("El video debe ser un archivo de video.");
@@ -219,7 +221,7 @@ function PaperFormModal({
             description={
               paper?.urlPdf
                 ? "Deja vacío para conservar el archivo actual."
-                : "Se sube directo a Firebase Storage (máx. 30 MB)."
+                : "Opcional si subes un video. Se sube directo a Firebase Storage (máx. 30 MB)."
             }
             placeholder="Seleccionar PDF..."
             accept="application/pdf"
@@ -238,11 +240,11 @@ function PaperFormModal({
         </Stack>
         <Stack gap={4}>
           <FileInput
-            label="Video (opcional)"
+            label="Video"
             description={
               paper?.urlVideo && !removeVideo
                 ? "Deja vacío para conservar el video actual."
-                : "Complementario al PDF; no participa en la búsqueda conceptual. Máx. 150 MB."
+                : "Si lo subes, se muestra como contenido principal del póster (en vez del PDF). El PDF, si también hay uno, queda disponible para descargar. No participa en la búsqueda conceptual. Máx. 150 MB."
             }
             placeholder="Seleccionar video..."
             accept="video/*"
