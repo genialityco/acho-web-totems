@@ -154,3 +154,35 @@ export const resetVotes = onCall(async (request) => {
   await Promise.all(batches.map((b) => b.commit()));
   return { ok: true, votesDeleted: votesSnap.size, papersReset: papersSnap.size };
 });
+
+type PaperMetric = "view" | "download";
+const PAPER_METRIC_FIELDS: Record<PaperMetric, string> = {
+  view: "viewCount",
+  download: "downloadCount",
+};
+
+interface IncrementPaperMetricRequest {
+  eventSlug?: string;
+  paperId?: string;
+  metric?: PaperMetric;
+}
+
+// Suma 1 a un contador público del póster (vistas o descargas, ver "Búsqueda inteligente" en
+// CLAUDE.md para el patrón equivalente de callables públicas). No hace falta transacción:
+// FieldValue.increment ya es atómico por sí solo.
+export const incrementPaperMetric = onCall(async (request) => {
+  const { eventSlug, paperId, metric } = request.data as IncrementPaperMetricRequest;
+  const field = metric && PAPER_METRIC_FIELDS[metric];
+  if (!eventSlug || !paperId || !field) {
+    throw new HttpsError("invalid-argument", "Faltan datos para registrar la métrica.");
+  }
+
+  const paperRef = db.doc(`events/${eventSlug}/papers/${paperId}`);
+  const paperSnap = await paperRef.get();
+  if (!paperSnap.exists) {
+    throw new HttpsError("not-found", "El póster no existe.");
+  }
+
+  await paperRef.update({ [field]: FieldValue.increment(1) });
+  return { ok: true };
+});

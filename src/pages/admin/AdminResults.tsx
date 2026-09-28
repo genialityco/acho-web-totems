@@ -67,6 +67,8 @@ export default function AdminResults() {
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
   const activeVoters = voters.filter((v) => v.active).length;
   const participation = activeVoters > 0 ? Math.round((votes.length / activeVoters) * 100) : 0;
+  const totalViews = papers.reduce((sum, p) => sum + p.viewCount, 0);
+  const totalDownloads = papers.reduce((sum, p) => sum + p.downloadCount, 0);
 
   const openReset = () => {
     setConfirmText("");
@@ -90,11 +92,13 @@ export default function AdminResults() {
 
   return (
     <Stack gap="lg">
-      <SimpleGrid cols={{ base: 2, sm: 4 }}>
+      <SimpleGrid cols={{ base: 2, sm: 3 }}>
         <Stat label="Papers" value={papers.length} />
         <Stat label="Votantes activos" value={activeVoters} />
         <Stat label="Votos emitidos" value={votes.length} />
         <Stat label="Participación" value={`${participation}%`} />
+        <Stat label="Vistas de pósters" value={totalViews} />
+        <Stat label="Descargas de PDF" value={totalDownloads} />
       </SimpleGrid>
 
       {resetResult && (
@@ -122,6 +126,8 @@ export default function AdminResults() {
                     <Table.Th>Título</Table.Th>
                     <Table.Th>Categoría</Table.Th>
                     <Table.Th>Votos</Table.Th>
+                    <Table.Th>Vistas</Table.Th>
+                    <Table.Th>Descargas</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -133,6 +139,8 @@ export default function AdminResults() {
                       <Table.Td>
                         <b>{paper.voteCount}</b>
                       </Table.Td>
+                      <Table.Td>{paper.viewCount}</Table.Td>
+                      <Table.Td>{paper.downloadCount}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

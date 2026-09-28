@@ -14,10 +14,12 @@ import {
 import { IconArrowsMaximize, IconArrowsMinimize, IconDownload } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { castVote, VoteError } from "../services/firestore/voteService";
+import { trackPosterDownload, trackPosterView } from "../services/firestore/paperMetricsService";
 import { usePosters } from "../context/usePosters";
 import { useElementFullscreen } from "../hooks/useElementFullscreen";
 import { slugify } from "../utils/text";
 import { getAnonymousVoterId } from "../utils/anonymousVoter";
+import { trackEvent } from "../services/analytics";
 import "./PosterDetail.css";
 
 const pdfFileName = (title: string) => `${slugify(title).slice(0, 100) || "poster"}.pdf`;
@@ -40,6 +42,16 @@ const PosterDetail = () => {
   const currentIndex = currentPagePosters.findIndex((p) => p.id === id);
   const votingClosed = event?.votingOpen === false;
   const isAnonymousVoting = event?.voteMode === "anonymous";
+
+  useEffect(() => {
+    if (!poster) return;
+    trackEvent("poster_view", {
+      event_slug: eventSlug,
+      paper_id: poster.id,
+      paper_title: poster.title,
+    });
+    void trackPosterView(eventSlug, poster.id);
+  }, [poster, eventSlug]);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -77,7 +89,10 @@ const PosterDetail = () => {
   // o un PDF alojado fuera de Storage— el fetch falla y se abre el PDF directo (el navegador lo
   // descarga o lo muestra en otra pestaña). Ctrl/Cmd/Shift + clic dejan actuar al enlace normal.
   const handleDownload = async (event: ReactMouseEvent<HTMLAnchorElement>) => {
-    if (!poster || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!poster) return;
+    trackEvent("pdf_download", { event_slug: eventSlug, paper_id: poster.id, paper_title: poster.title });
+    void trackPosterDownload(eventSlug, poster.id);
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
     event.preventDefault();
     setIsDownloading(true);
     try {
@@ -113,6 +128,13 @@ const PosterDetail = () => {
     setShowVotedInfo(false);
     try {
       await castVote({ eventSlug, idNumber: voterId, paperId: poster.id });
+      trackEvent("vote_cast", {
+        event_slug: eventSlug,
+        paper_id: poster.id,
+        paper_title: poster.title,
+        category_id: poster.categoryId ?? "",
+        vote_mode: event?.voteMode ?? "registered",
+      });
       setIsVoteModalOpen(false);
       setIdNumber("");
       setShowModalSuccess(true);

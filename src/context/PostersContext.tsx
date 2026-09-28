@@ -10,11 +10,15 @@ import { embedSearchQuery } from "../services/firestore/searchQueryService";
 import { buildSnippet, normalizeSearchText, normalizeText, SearchSnippet } from "../utils/text";
 import { cosineSimilarity } from "../utils/vectorMath";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
+import { trackEvent } from "../services/analytics";
 import { PostersContext, EventStatus, SearchMode } from "./usePosters";
 
 // Umbral mínimo de caracteres antes de pedir un embedding de la búsqueda.
 const SEMANTIC_MIN_TERM_LENGTH = 3;
 const SEMANTIC_DEBOUNCE_MS = 400;
+// Espera a que la persona deje de teclear antes de mandar el evento de analítica, para no
+// mandar uno por cada letra escrita.
+const SEARCH_TRACK_DEBOUNCE_MS = 800;
 // Los cosenos de gemini-embedding-001 entre una consulta y los papers de un
 // evento caen en una banda angosta (~0.5–0.75, incluso para una consulta sin
 // relación), así que un umbral bajo deja pasar todo. Un paper es relevante en
@@ -261,6 +265,25 @@ export const PostersProvider: React.FC<{
       semanticOnlyIds: semanticOnly,
     };
   }, [posters, searchTerm, selectedCategory, selectedTheme, searchMode, searchIndexByPaperId, bodyByPaperId, queryEmbedding]);
+
+  // Analítica de búsqueda: un evento por búsqueda (no por tecla), y solo cuando el resultado
+  // ya es válido (en modo semántico/ambas espera a que llegue el embedding de la consulta).
+  const debouncedTrackSearch = useMemo(
+    () =>
+      debounce((mode: SearchMode, hasResults: boolean) => {
+        trackEvent("search_used", { event_slug: eventSlug, search_mode: mode, has_results: hasResults });
+      }, SEARCH_TRACK_DEBOUNCE_MS),
+    [eventSlug]
+  );
+  useEffect(() => () => debouncedTrackSearch.cancel(), [debouncedTrackSearch]);
+
+  useEffect(() => {
+    if (!normalizeText(searchTerm) || semanticSearchLoading) {
+      debouncedTrackSearch.cancel();
+      return;
+    }
+    debouncedTrackSearch(searchMode, filteredPosters.length > 0);
+  }, [searchTerm, searchMode, filteredPosters.length, semanticSearchLoading, debouncedTrackSearch]);
 
   const categories = useMemo(
     () => categoryList.map((c) => ({ ...c, count: categoryCounts.get(c.id) ?? 0 })),

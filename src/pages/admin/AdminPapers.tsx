@@ -382,6 +382,8 @@ export default function AdminPapers() {
                 <Table.Th>Categoría</Table.Th>
                 <Table.Th>Tema</Table.Th>
                 <Table.Th>Votos</Table.Th>
+                <Table.Th>Vistas</Table.Th>
+                <Table.Th>Descargas</Table.Th>
                 <Table.Th>Búsqueda</Table.Th>
                 <Table.Th />
               </Table.Tr>
@@ -394,6 +396,8 @@ export default function AdminPapers() {
                   <Table.Td>{categoryName(paper.categoryId)}</Table.Td>
                   <Table.Td>{paper.theme ?? "—"}</Table.Td>
                   <Table.Td>{paper.voteCount}</Table.Td>
+                  <Table.Td>{paper.viewCount}</Table.Td>
+                  <Table.Td>{paper.downloadCount}</Table.Td>
                   <Table.Td>
                     <SearchIndexBadge
                       index={searchIndexByPaperId.get(paper.id)}

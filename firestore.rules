@@ -25,9 +25,10 @@ service cloud.firestore {
       match /papers/{paperId} {
         allow read: if true;
         allow create, delete: if isAdmin();
-        // voteCount only ever changes via the castVote/resetVotes Cloud Functions
+        // voteCount/viewCount/downloadCount only ever change via Cloud Functions
+        // (castVote/resetVotes and incrementPaperMetric)
         allow update: if isAdmin() &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['voteCount']);
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['voteCount', 'viewCount', 'downloadCount']);
       }
 
       match /paperSearchIndex/{paperId} {
