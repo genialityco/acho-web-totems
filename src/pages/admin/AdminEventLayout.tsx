@@ -252,6 +252,16 @@ function EventFrame() {
     }
   };
 
+  const toggleVoteRequiresRegistration = async (requiresRegistration: boolean) => {
+    setError(null);
+    try {
+      await updateEvent(eventSlug, { voteRequiresRegistration: requiresRegistration });
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cambiar el modo de registro para votar.");
+    }
+  };
+
   const toggleSearchExplanations = async (enabled: boolean) => {
     setError(null);
     try {
@@ -295,6 +305,19 @@ function EventFrame() {
             />
             <Text size="xs" c="dimmed">
               Cuando está cerrada nadie puede votar.
+            </Text>
+          </Stack>
+          <Stack gap={2} align="flex-end">
+            <Switch
+              size="md"
+              checked={event.voteRequiresRegistration}
+              onChange={(e) => void toggleVoteRequiresRegistration(e.currentTarget.checked)}
+              label={event.voteRequiresRegistration ? "Votación con registro" : "Votación sin registro"}
+            />
+            <Text size="xs" c="dimmed" ta="right" maw={320}>
+              {event.voteRequiresRegistration
+                ? 'Solo pueden votar cédulas precargadas y activas en "Votantes".'
+                : 'Cualquier número de identificación puede votar (una vez por número), sin necesidad de estar en "Votantes".'}
             </Text>
           </Stack>
           <Stack gap={2} align="flex-end">

@@ -28,6 +28,11 @@ export interface EventInfo {
   // Botón "¿Por qué este resultado?" en los resultados de la búsqueda conceptual (ver
   // MatchExplanation); apagado por defecto porque cada explicación es una llamada a Gemini.
   searchExplanationsEnabled: boolean;
+  // Si es true (default, preserva el comportamiento histórico), castVote exige que la cédula
+  // exista y esté activa en voters/{idNumber}. Si es false, cualquier cédula puede votar (una
+  // sola vez, ya que votes/{idNumber} sigue siendo la clave de deduplicación) sin necesidad de
+  // haber sido precargada en "Votantes".
+  voteRequiresRegistration: boolean;
 }
 
 const optionalUrl = (value: unknown) => (typeof value === "string" && value ? value : null);
@@ -48,6 +53,7 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
     DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS
   ),
   searchExplanationsEnabled: data.searchExplanationsEnabled === true,
+  voteRequiresRegistration: data.voteRequiresRegistration !== false,
 });
 
 // Suscripción en vivo al evento; entrega null si el slug no existe.
@@ -98,6 +104,7 @@ export const updateEvent = (
       | "screensaverIdleSeconds"
       | "screensaverPhotoDurationSeconds"
       | "searchExplanationsEnabled"
+      | "voteRequiresRegistration"
     >
   >
 ) => updateDoc(doc(db, "events", slug), changes);

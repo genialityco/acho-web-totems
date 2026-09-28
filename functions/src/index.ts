@@ -37,10 +37,15 @@ export const castVote = onCall(async (request) => {
     if (!eventSnap.exists) {
       throw new HttpsError("not-found", "El evento no existe.");
     }
-    if (eventSnap.data()?.votingOpen === false) {
+    const eventData = eventSnap.data();
+    if (eventData?.votingOpen === false) {
       throw new HttpsError("failed-precondition", "La votación para este evento está cerrada.");
     }
-    if (!voterSnap.exists || voterSnap.data()?.active !== true) {
+    // Por defecto (campo ausente o true) la cédula debe existir y estar activa en el roster
+    // precargado. Si el admin desactivó el registro, cualquier cédula puede votar; votes/{idNumber}
+    // sigue evitando que la misma cédula vote dos veces.
+    const requiresRegistration = eventData?.voteRequiresRegistration !== false;
+    if (requiresRegistration && (!voterSnap.exists || voterSnap.data()?.active !== true)) {
       throw new HttpsError(
         "not-found",
         "No se encontró un usuario con esta cédula. Regístrate en la App para poder votar."
