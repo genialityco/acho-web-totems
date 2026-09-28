@@ -175,7 +175,7 @@ const PosterDetail = () => {
       </Text>
       <Group justify="space-around" mb="md">
         <Button
-          variant="light"
+          variant="filled"
           color="blue"
           size="lg"
           onClick={handleVoteClick}
