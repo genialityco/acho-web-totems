@@ -23,6 +23,7 @@ import {
 } from "@mantine/core";
 import {
   IconFileTypePdf,
+  IconGitMerge,
   IconPencil,
   IconPlus,
   IconRefresh,
@@ -37,6 +38,7 @@ import { errorMessage } from "../../services/firestore/batch";
 import {
   createPaper,
   deletePaper,
+  mergeDuplicatePaper,
   Paper,
   PaperInput,
   parseAuthors,
@@ -327,6 +329,10 @@ export default function AdminPapers() {
   const [retryingPaperId, setRetryingPaperId] = useState<string | null>(null);
   const [reindexingAll, setReindexingAll] = useState(false);
   const [reindexError, setReindexError] = useState<string | null>(null);
+  const [merging, setMerging] = useState<Paper | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
+  const [mergeSaving, setMergeSaving] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
 
@@ -356,6 +362,27 @@ export default function AdminPapers() {
       setReindexError(errorMessage(e));
     } finally {
       setReindexingAll(false);
+    }
+  };
+
+  const openMerge = (paper: Paper) => {
+    setMergeError(null);
+    setMergeTargetId(null);
+    setMerging(paper);
+  };
+
+  const handleMerge = async () => {
+    if (!merging || !mergeTargetId) return;
+    setMergeSaving(true);
+    setMergeError(null);
+    try {
+      await mergeDuplicatePaper(eventSlug, mergeTargetId, merging.id);
+      setMerging(null);
+      setMergeTargetId(null);
+    } catch (e) {
+      setMergeError(errorMessage(e));
+    } finally {
+      setMergeSaving(false);
     }
   };
 
@@ -476,6 +503,11 @@ export default function AdminPapers() {
                           <IconPencil size={16} />
                         </ActionIcon>
                       </Tooltip>
+                      <Tooltip label="Fusionar con otro paper (duplicado)">
+                        <ActionIcon variant="subtle" aria-label="Fusionar" onClick={() => openMerge(paper)}>
+                          <IconGitMerge size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                       <Tooltip
                         label={
                           paper.voteCount > 0
@@ -525,6 +557,33 @@ export default function AdminPapers() {
         onConfirm={handleDelete}
         onClose={() => setToDelete(null)}
       />
+
+      <ConfirmModal
+        opened={merging !== null}
+        title="Fusionar paper duplicado"
+        message={
+          `Se sumarán los votos, vistas y descargas de "${merging?.title}" al paper que elijas, ` +
+          "sus votos individuales se reasignarán, y este quedará eliminado. Esta acción no se puede deshacer."
+        }
+        confirmLabel="Fusionar y eliminar"
+        confirmDisabled={!mergeTargetId}
+        loading={mergeSaving}
+        error={mergeError}
+        onConfirm={handleMerge}
+        onClose={() => setMerging(null)}
+      >
+        <Select
+          mt="md"
+          label="Conservar en"
+          placeholder="Selecciona el paper que se queda"
+          data={papers
+            .filter((p) => p.id !== merging?.id)
+            .map((p) => ({ value: p.id, label: p.urlVideo ? `${p.title} (con video)` : p.title }))}
+          value={mergeTargetId}
+          onChange={setMergeTargetId}
+          searchable
+        />
+      </ConfirmModal>
     </Stack>
   );
 }

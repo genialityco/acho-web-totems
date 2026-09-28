@@ -225,3 +225,52 @@ export const resetPaperMetrics = onCall(async (request) => {
   await Promise.all(batches.map((b) => b.commit()));
   return { ok: true, papersReset: papersSnap.size };
 });
+
+interface MergeDuplicatePaperRequest {
+  eventSlug?: string;
+  keepPaperId?: string;
+  removePaperId?: string;
+}
+
+// Fusiona un paper duplicado (removePaperId) en otro (keepPaperId, admin-only): suma
+// voteCount/viewCount/downloadCount, reasigna a keepPaperId los votes/{idNumber} que apuntaban
+// al que se elimina (nadie puede tener dos, ya que un voter solo tiene un voto por evento), y
+// borra el paper duplicado. Su paperSearchIndex se borra solo, vía indexPaperSearchTrigger.
+export const mergeDuplicatePaper = onCall(async (request) => {
+  await assertIsAdmin(request.auth?.uid);
+
+  const { eventSlug, keepPaperId, removePaperId } = request.data as MergeDuplicatePaperRequest;
+  if (!eventSlug || !keepPaperId || !removePaperId || keepPaperId === removePaperId) {
+    throw new HttpsError("invalid-argument", "Selecciona dos papers distintos para fusionar.");
+  }
+
+  const keepRef = db.doc(`events/${eventSlug}/papers/${keepPaperId}`);
+  const removeRef = db.doc(`events/${eventSlug}/papers/${removePaperId}`);
+  const [keepSnap, removeSnap, votesSnap] = await Promise.all([
+    keepRef.get(),
+    removeRef.get(),
+    db.collection(`events/${eventSlug}/votes`).where("paperId", "==", removePaperId).get(),
+  ]);
+
+  if (!keepSnap.exists || !removeSnap.exists) {
+    throw new HttpsError("not-found", "Alguno de los dos papers no existe.");
+  }
+
+  const keepData = keepSnap.data() ?? {};
+  const removeData = removeSnap.data() ?? {};
+  const sumField = (field: string) =>
+    (typeof keepData[field] === "number" ? keepData[field] : 0) +
+    (typeof removeData[field] === "number" ? removeData[field] : 0);
+
+  const batch = db.batch();
+  batch.update(keepRef, {
+    voteCount: sumField("voteCount"),
+    viewCount: sumField("viewCount"),
+    downloadCount: sumField("downloadCount"),
+  });
+  votesSnap.docs.forEach((d) => batch.update(d.ref, { paperId: keepPaperId }));
+  batch.delete(removeRef);
+  await batch.commit();
+
+  return { ok: true, votesMoved: votesSnap.size };
+});

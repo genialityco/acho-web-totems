@@ -7,7 +7,8 @@ import {
   Unsubscribe,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../firebaseConfig";
 import { commitRowsInChunks } from "./batch";
 
 export interface Paper {
@@ -94,3 +95,13 @@ export const importPapers = (slug: string, inputs: PaperInput[]) =>
   commitRowsInChunks(inputs, (batch, input) =>
     batch.set(doc(collection(db, "events", slug, "papers")), { ...input, voteCount: 0, viewCount: 0, downloadCount: 0 })
   );
+
+const mergeDuplicatePaperCallable = httpsCallable<
+  { eventSlug: string; keepPaperId: string; removePaperId: string },
+  { ok: boolean; votesMoved: number }
+>(functions, "mergeDuplicatePaper");
+
+// Fusiona un paper duplicado (removePaperId) en otro (keepPaperId): suma votos/vistas/descargas,
+// reasigna los votos individuales y borra el duplicado (admin-only, ver mergeDuplicatePaper).
+export const mergeDuplicatePaper = async (eventSlug: string, keepPaperId: string, removePaperId: string) =>
+  (await mergeDuplicatePaperCallable({ eventSlug, keepPaperId, removePaperId })).data;
