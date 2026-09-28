@@ -17,6 +17,14 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    match /events/{eventSlug}/paper-videos/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 150 * 1024 * 1024 &&
+        request.resource.contentType.matches('video/.*');
+      allow delete: if isAdmin();
+    }
+
     match /events/{eventSlug}/images/{fileName} {
       allow read: if true;
       allow write: if isAdmin() &&

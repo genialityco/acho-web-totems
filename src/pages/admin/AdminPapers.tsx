@@ -28,6 +28,7 @@ import {
   IconRefresh,
   IconTrash,
   IconUpload,
+  IconVideo,
 } from "@tabler/icons-react";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { usePagination } from "../../components/admin/usePagination";
@@ -43,7 +44,14 @@ import {
 } from "../../services/firestore/paperService";
 import { PaperSearchIndex, PaperSearchIndexStatus } from "../../services/firestore/paperSearchIndexService";
 import { reindexPaperSearch } from "../../services/firestore/searchQueryService";
-import { deletePaperPdf, MAX_PAPER_FILE_BYTES, uploadPaperPdf } from "../../services/storageService";
+import {
+  deletePaperPdf,
+  deletePaperVideo,
+  MAX_PAPER_FILE_BYTES,
+  MAX_PAPER_VIDEO_BYTES,
+  uploadPaperPdf,
+  uploadPaperVideo,
+} from "../../services/storageService";
 import { normalizeText } from "../../utils/text";
 
 const SEARCH_INDEX_BADGE: Record<PaperSearchIndexStatus, { label: string; color: string }> = {
@@ -98,6 +106,8 @@ function PaperFormModal({
   const [authors, setAuthors] = useState("");
   const [institution, setInstitution] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [removeVideo, setRemoveVideo] = useState(false);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [theme, setTheme] = useState("");
   const [year, setYear] = useState<number | "">("");
@@ -105,6 +115,7 @@ function PaperFormModal({
   const [identificationCode, setIdentificationCode] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const themes = useMemo(
@@ -117,6 +128,8 @@ function PaperFormModal({
     setAuthors(paper?.authors.join("\n") ?? "");
     setInstitution(paper?.institution ?? "");
     setFile(null);
+    setVideoFile(null);
+    setRemoveVideo(false);
     setCategoryId(paper?.categoryId ?? null);
     setTheme(paper?.theme ?? "");
     setYear(paper?.year ?? "");
@@ -124,6 +137,7 @@ function PaperFormModal({
     setIdentificationCode(paper?.identificationCode ?? "");
     setError(null);
     setUploadProgress(null);
+    setVideoUploadProgress(null);
   }, [paper]);
 
   const handleSubmit = async () => {
@@ -131,6 +145,8 @@ function PaperFormModal({
     if (!file && !paper?.urlPdf) return setError("Selecciona el archivo PDF del paper.");
     if (file && file.type !== "application/pdf") return setError("El archivo debe ser un PDF.");
     if (file && file.size > MAX_PAPER_FILE_BYTES) return setError("El archivo no puede superar los 30 MB.");
+    if (videoFile && !videoFile.type.startsWith("video/")) return setError("El video debe ser un archivo de video.");
+    if (videoFile && videoFile.size > MAX_PAPER_VIDEO_BYTES) return setError("El video no puede superar los 150 MB.");
 
     setSaving(true);
     setError(null);
@@ -141,11 +157,20 @@ function PaperFormModal({
         setUploadProgress(0);
         urlPdf = await uploadPaperPdf(eventSlug, file, setUploadProgress).promise;
       }
+      const previousVideoUrl = paper?.urlVideo ?? null;
+      let urlVideo = previousVideoUrl;
+      if (videoFile) {
+        setVideoUploadProgress(0);
+        urlVideo = await uploadPaperVideo(eventSlug, videoFile, setVideoUploadProgress).promise;
+      } else if (removeVideo) {
+        urlVideo = null;
+      }
       await onSave({
         title: title.trim(),
         authors: parseAuthors(authors),
         institution: institution.trim(),
         urlPdf,
+        urlVideo,
         categoryId,
         theme: theme.trim() || null,
         year: year === "" ? null : year,
@@ -156,10 +181,14 @@ function PaperFormModal({
         // El paper ya quedó guardado con el archivo nuevo; el anterior es basura en Storage.
         deletePaperPdf(previousUrl).catch((err) => console.error("No se pudo borrar el PDF anterior:", err));
       }
+      if (previousVideoUrl && previousVideoUrl !== urlVideo) {
+        deletePaperVideo(previousVideoUrl).catch((err) => console.error("No se pudo borrar el video anterior:", err));
+      }
     } catch (e) {
       setError(errorMessage(e));
       setSaving(false);
       setUploadProgress(null);
+      setVideoUploadProgress(null);
     }
   };
 
@@ -206,6 +235,39 @@ function PaperFormModal({
             </Anchor>
           )}
           {uploadProgress !== null && <Progress value={uploadProgress} animated />}
+        </Stack>
+        <Stack gap={4}>
+          <FileInput
+            label="Video (opcional)"
+            description={
+              paper?.urlVideo && !removeVideo
+                ? "Deja vacío para conservar el video actual."
+                : "Complementario al PDF; no participa en la búsqueda conceptual. Máx. 150 MB."
+            }
+            placeholder="Seleccionar video..."
+            accept="video/*"
+            leftSection={<IconVideo size={16} />}
+            value={videoFile}
+            onChange={(f) => {
+              setVideoFile(f);
+              if (f) setRemoveVideo(false);
+            }}
+            clearable
+            disabled={saving}
+          />
+          {paper?.urlVideo && !removeVideo && !videoFile && (
+            <Group gap="xs">
+              <Anchor href={paper.urlVideo} target="_blank" rel="noreferrer" size="sm">
+                Ver video actual
+              </Anchor>
+              <Tooltip label="Quitar video">
+                <ActionIcon variant="subtle" color="red" aria-label="Quitar video" onClick={() => setRemoveVideo(true)}>
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          )}
+          {videoUploadProgress !== null && <Progress value={videoUploadProgress} animated />}
         </Stack>
         <Select
           label="Categoría"

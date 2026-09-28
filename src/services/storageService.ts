@@ -4,6 +4,7 @@ import { storage } from "./firebaseConfig";
 export const MAX_PAPER_FILE_BYTES = 30 * 1024 * 1024;
 export const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_SCREENSAVER_MEDIA_BYTES = 150 * 1024 * 1024;
+export const MAX_PAPER_VIDEO_BYTES = 150 * 1024 * 1024;
 
 const sanitizeFileName = (name: string) =>
   name
@@ -48,6 +49,27 @@ const deleteStorageFile = async (downloadUrl: string): Promise<void> => {
 };
 
 export const deletePaperPdf = deleteStorageFile;
+
+// Sube el video (opcional, complementario al PDF) de un paper y resuelve con su URL de descarga
+// pública. Va en su propia carpeta porque events/{eventSlug}/papers/{fileName} exige
+// contentType application/pdf en storage.rules.
+export const uploadPaperVideo = (eventSlug: string, file: File, onProgress?: (percent: number) => void): UploadHandle => {
+  const path = `events/${eventSlug}/paper-videos/${Date.now()}-${sanitizeFileName(file.name)}`;
+  const task = uploadBytesResumable(ref(storage, path), file, { contentType: file.type });
+
+  const promise = new Promise<string>((resolve, reject) => {
+    task.on(
+      "state_changed",
+      (snapshot) => onProgress?.(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
+      reject,
+      () => getDownloadURL(task.snapshot.ref).then(resolve, reject)
+    );
+  });
+
+  return { promise, cancel: () => task.cancel() };
+};
+
+export const deletePaperVideo = deleteStorageFile;
 
 export type EventImageKind = "banner" | "background";
 

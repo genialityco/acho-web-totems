@@ -45,6 +45,7 @@ const en: typeof es = {
     voteOpen: "Vote for this poster",
     backToList: "Back to list",
     posterIframeTitle: "Poster",
+    videoSectionTitle: "Video",
     download: "Download",
     fullscreen: "Full screen",
     exitFullscreen: "Exit full screen",

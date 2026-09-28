@@ -6,6 +6,7 @@ import {
   Loader,
   Modal,
   Group,
+  Stack,
   TextInput,
   Notification,
   Text,
@@ -272,6 +273,14 @@ const PosterDetail = () => {
           allowFullScreen
         />
       </div>
+
+      {poster.urlVideo && (
+        <Stack gap={4} mt="md">
+          <Text fw={600}>{t("posterDetail.videoSectionTitle")}</Text>
+          {/* key para que el <video> se recargue si el visitante cambia de póster sin desmontar este bloque */}
+          <video key={poster.urlVideo} className="posterVideo" controls src={poster.urlVideo} />
+        </Stack>
+      )}
 
       {/* Modal para votar */}
       <Modal

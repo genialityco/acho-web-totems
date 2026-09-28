@@ -62,6 +62,7 @@ export default function PapersBulkUpload() {
           authors: parseAuthors(authors),
           institution,
           urlPdf,
+          urlVideo: null,
           categoryId,
           theme: theme || null,
           year,

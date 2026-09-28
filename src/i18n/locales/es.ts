@@ -42,6 +42,7 @@ const es = {
     voteOpen: "Votar por este póster",
     backToList: "Volver a la lista",
     posterIframeTitle: "Póster",
+    videoSectionTitle: "Video",
     download: "Descargar",
     fullscreen: "Pantalla completa",
     exitFullscreen: "Salir de pantalla completa",

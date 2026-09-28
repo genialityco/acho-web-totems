@@ -16,6 +16,10 @@ export interface Paper {
   authors: string[];
   institution: string;
   urlPdf: string;
+  // Video opcional y complementario al PDF (ver storageService.uploadPaperVideo); no participa
+  // en el indexado de búsqueda semántica (solo se procesa texto de PDF, ver indexPaperSearchTrigger),
+  // pero el paper sigue apareciendo en búsqueda exacta por título/autores como cualquier otro.
+  urlVideo: string | null;
   categoryId: string | null;
   theme: string | null;
   year: number | null;
@@ -59,6 +63,7 @@ export const subscribePapers = (
             : [],
           institution: asString(data.institution),
           urlPdf: asString(data.urlPdf),
+          urlVideo: asString(data.urlVideo) || null,
           categoryId: asString(data.categoryId) || null,
           theme: asString(data.theme) || null,
           year: typeof data.year === "number" ? data.year : null,

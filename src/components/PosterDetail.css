@@ -25,6 +25,14 @@
   background-color: white;
 }
 
+/* Video opcional del póster, debajo del visor de PDF. */
+.posterVideo {
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  background-color: black;
+}
+
 .posterViewerToolbar {
   flex: none;
   padding: 6px 8px;
