@@ -59,6 +59,17 @@ const PosterDetail = () => {
     void trackPosterView(eventSlug, poster.id);
   }, [poster, eventSlug]);
 
+  // PosterDetail no se desmonta al navegar entre pósters con "Siguiente"/"Anterior" (misma ruta,
+  // solo cambia :id), así que sin esto el modal de voto y sus mensajes (ej. "ya votaste por X")
+  // quedarían pegados de un póster al siguiente.
+  useEffect(() => {
+    setIsVoteModalOpen(false);
+    setShowModalSuccess(false);
+    setVoteError(null);
+    setShowVotedInfo(false);
+    setIdNumber("");
+  }, [poster?.id]);
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, isOverlay, toggle: toggleFullscreen } = useElementFullscreen(viewerRef);
@@ -88,7 +99,14 @@ const PosterDetail = () => {
     };
   }, []);
 
-  const handleVoteClick = () => setIsVoteModalOpen(true);
+  // Limpia cualquier mensaje de un intento anterior (de este póster u otro) para que el modal
+  // nunca abra mostrando de entrada el "ya votaste por X" de una interacción pasada.
+  const handleVoteClick = () => {
+    setVoteError(null);
+    setShowVotedInfo(false);
+    setIdNumber("");
+    setIsVoteModalOpen(true);
+  };
 
   // Descarga directa: baja el PDF como blob y lo guarda con el título del póster como nombre. Solo
   // funciona si el CORS del bucket permite el origen de la app (ver CLAUDE.md); si no —ej. localhost,
