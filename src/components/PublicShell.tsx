@@ -76,7 +76,22 @@ export default function PublicShell({
         ) : (
           <Skeleton height={bannerHeight} width="100%" radius={0} style={{ transition: "height 300ms ease" }} />
         )}
-        <Box style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)" }}>
+        {/* Logo Geniality (SVG transparente con texto blanco): va sobre un chip oscuro
+            para que se lea sin importar los colores del banner. */}
+        <Box
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 12,
+            padding: "4px 10px",
+            borderRadius: 8,
+            backgroundColor: "rgba(19, 56, 81, 0.92)",
+            lineHeight: 0,
+          }}
+        >
+          <Image src="/logo-geniality.svg" alt="Geniality" h={28} w="auto" fit="contain" />
+        </Box>
+        <Box style={{ position: "absolute", bottom: 8, right: 12 }}>
           <LanguageSwitcher />
         </Box>
       </Box>

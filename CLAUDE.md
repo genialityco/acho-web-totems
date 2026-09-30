@@ -36,6 +36,7 @@ events/{eventSlug}                        name, votingOpen, bannerUrl, backgroun
                                            (doc id = paper id; public-read, function-only write — see "Búsqueda inteligente" below)
   voters/{idNumber}                       idNumber, fullName, active (roster; doc id = cédula; admin-only)
   votes/{idNumber}                        paperId, castAt            (doc id = cédula → one vote per person; nobody can write from the client)
+  metricsDaily/{yyyy-mm-dd}               date, views, downloads, papers{paperId:{views,downloads}}   (admin-read, function-only write: incrementPaperMetric acumula por día en zona America/Bogota; resetPaperMetrics los borra; alimenta las gráficas de `MetricsCharts.tsx` en /results, hechas con @mantine/charts)
   screensaverItems/{id}                   type ("image"|"video"), url, order, fit ("cover"|"contain", default "cover")   (public-read like categories/papers; the idle-screensaver's photo/video rotation)
 admins/{uid}                              email                      (existence of the doc = is admin; collection name is `admins`, plural)
 ```

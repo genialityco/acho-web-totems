@@ -183,7 +183,22 @@ export const incrementPaperMetric = onCall(async (request) => {
     throw new HttpsError("not-found", "El póster no existe.");
   }
 
-  await paperRef.update({ [field]: FieldValue.increment(1) });
+  // Además del contador total, se acumula por día (zona Bogotá) y por póster en
+  // events/{slug}/metricsDaily/{yyyy-mm-dd} para las gráficas del admin.
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+  const dailyField = metric === "view" ? "views" : "downloads";
+  const dailyRef = db.doc(`events/${eventSlug}/metricsDaily/${day}`);
+  await Promise.all([
+    paperRef.update({ [field]: FieldValue.increment(1) }),
+    dailyRef.set(
+      {
+        date: day,
+        [dailyField]: FieldValue.increment(1),
+        papers: { [paperId]: { [dailyField]: FieldValue.increment(1) } },
+      },
+      { merge: true }
+    ),
+  ]);
   return { ok: true };
 });
 
@@ -201,7 +216,10 @@ export const resetPaperMetrics = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Falta el evento.");
   }
 
-  const papersSnap = await db.collection(`events/${eventSlug}/papers`).get();
+  const [papersSnap, dailySnap] = await Promise.all([
+    db.collection(`events/${eventSlug}/papers`).get(),
+    db.collection(`events/${eventSlug}/metricsDaily`).get(),
+  ]);
 
   const batches: WriteBatch[] = [];
   let batch = db.batch();
@@ -218,6 +236,7 @@ export const resetPaperMetrics = onCall(async (request) => {
   };
 
   papersSnap.docs.forEach((d) => addOp((b) => b.update(d.ref, { viewCount: 0, downloadCount: 0 })));
+  dailySnap.docs.forEach((d) => addOp((b) => b.delete(d.ref)));
   if (opCount > 0) {
     batches.push(batch);
   }

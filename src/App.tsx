@@ -1,4 +1,5 @@
 import "@mantine/core/styles.css";
+import "@mantine/charts/styles.css";
 import { MantineProvider } from "@mantine/core";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { theme } from "./theme";

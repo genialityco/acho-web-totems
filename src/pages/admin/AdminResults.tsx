@@ -13,6 +13,7 @@ import {
   Title,
 } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
+import MetricsCharts from "../../components/admin/MetricsCharts";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { usePagination } from "../../components/admin/usePagination";
 import { useAdminEvent } from "../../context/useAdminEvent";
@@ -137,6 +138,8 @@ export default function AdminResults() {
           {metricsResetResult}
         </Alert>
       )}
+
+      <MetricsCharts />
 
       <Stack gap="sm">
         <Group justify="space-between">
