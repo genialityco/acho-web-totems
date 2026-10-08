@@ -143,7 +143,7 @@ function FieldFormModal({
         {list && filter !== "none" && (
           <Checkbox
             label="Mostrar solo después de elegir en el filtro anterior"
-            description="Ej. el tipo de estudio aparece cuando el visitante elige una especialización (o «Ver todos»)."
+            description="Ej. el tipo de estudio aparece cuando el visitante elige una especialización. Si el evento pide elegir antes de listar, desactívalo para que se pueda filtrar solo por este campo."
             checked={revealAfterPrevious}
             onChange={(e) => setRevealAfterPrevious(e.currentTarget.checked)}
           />

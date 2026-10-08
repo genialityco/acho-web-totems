@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   TextInput,
   Card,
@@ -16,17 +16,20 @@ import {
   Center,
   Pagination,
   Tooltip,
+  ActionIcon,
+  Indicator,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { usePosters, SearchMode } from "../context/usePosters";
+import { countAdvancedCriteria, EMPTY_ADVANCED_SEARCH, usePosters, SearchMode } from "../context/usePosters";
 import { formatAttribute, isListField, selectedOptions } from "../services/firestore/fieldService";
 import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { HighlightedText } from "./HighlightedText";
 import { MatchExplanation } from "./MatchExplanation";
-import { IconSearchOff } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconSearchOff } from "@tabler/icons-react";
+import { AdvancedSearchModal } from "./AdvancedSearchModal";
 import "./PosterList.css";
 
 export const PosterList = () => {
@@ -51,8 +54,14 @@ export const PosterList = () => {
     fields,
     filters,
     toggleFilterOption,
+    selectionRequired,
     getPaperColor,
+    advancedSearch,
+    setAdvancedSearch,
   } = usePosters();
+
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const advancedCount = countAdvancedCriteria(advancedSearch);
 
   // Columnas: solo por ancho (una pantalla angosta necesita cards angostas para que
   // el poster se lea bien, sea o no alta/TV). En 1080px de ancho esto da 2 columnas,
@@ -93,7 +102,7 @@ export const PosterList = () => {
     active: boolean,
     onSelect: () => void
   ) => {
-    // "Ver todos" (y las opciones sin color) usan el color primario del tema.
+    // Las opciones sin color usan el color primario del tema.
     const activeColor = color ? `var(--mantine-color-${color}-6)` : "var(--mantine-primary-color-filled)";
     return (
       <Card
@@ -258,7 +267,24 @@ export const PosterList = () => {
             size="lg"
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.currentTarget.value)}
-            rightSection={semanticSearchLoading ? <Loader size="xs" /> : null}
+            rightSectionWidth={semanticSearchLoading ? 76 : 48}
+            rightSection={
+              <Group gap={6} wrap="nowrap">
+                {semanticSearchLoading && <Loader size="xs" />}
+                <Tooltip label={t("posterList.advancedSearch.open")}>
+                  <Indicator label={advancedCount} size={16} disabled={advancedCount === 0}>
+                    <ActionIcon
+                      variant={advancedCount ? "filled" : "subtle"}
+                      size="lg"
+                      aria-label={t("posterList.advancedSearch.open")}
+                      onClick={() => setAdvancedOpen(true)}
+                    >
+                      <IconAdjustmentsHorizontal size={20} />
+                    </ActionIcon>
+                  </Indicator>
+                </Tooltip>
+              </Group>
+            }
           />
           <Group justify="space-between" wrap="wrap" gap="xs">
             <SegmentedControl
@@ -274,10 +300,20 @@ export const PosterList = () => {
               {t(`posterList.searchModeCaption.${searchMode}`)}
             </Text>
           </Group>
+          {advancedCount > 0 && (
+            <Group gap="xs">
+              <Badge size="lg" variant="filled" style={{ cursor: "pointer" }} onClick={() => setAdvancedOpen(true)}>
+                {t("posterList.advancedSearch.active", { count: advancedCount })}
+              </Badge>
+              <Button size="compact-sm" variant="white" onClick={() => setAdvancedSearch(EMPTY_ADVANCED_SEARCH)}>
+                {t("posterList.advancedSearch.remove")}
+              </Button>
+            </Group>
+          )}
+          <AdvancedSearchModal opened={advancedOpen} onClose={() => setAdvancedOpen(false)} />
         </Stack>
 
-        {filters.map(({ field, options, allCount, selected }) => {
-          const allActive = selected.length === 0;
+        {filters.map(({ field, options, selected }) => {
           return (
             <Stack key={field.id} gap="xs">
               {/* Fondo claro propio: el título va directo sobre la imagen de fondo del evento. */}
@@ -293,14 +329,6 @@ export const PosterList = () => {
               </Text>
               {field.filter === "cards" ? (
                 <SimpleGrid cols={categoryCols} spacing="sm">
-                  {renderFilterCard(
-                    "__all__",
-                    allActive ? t("posterList.viewingAll") : t("posterList.viewAll"),
-                    allCount,
-                    undefined,
-                    allActive,
-                    () => toggleFilterOption(field.id, null)
-                  )}
                   {options.map(({ id, name, count, color }) => {
                     const active = selected.includes(id);
                     return renderFilterCard(
@@ -315,9 +343,6 @@ export const PosterList = () => {
                 </SimpleGrid>
               ) : (
                 <Group gap="sm">
-                  {renderFilterButton("__all__", t("posterList.viewAll"), allCount, allActive, () =>
-                    toggleFilterOption(field.id, null)
-                  )}
                   {options.map(({ id, name, count }) =>
                     renderFilterButton(id, name, count, selected.includes(id), () => toggleFilterOption(field.id, id))
                   )}
@@ -330,6 +355,21 @@ export const PosterList = () => {
         {loading ? (
           <Center py="xl">
             <Loader size="lg" />
+          </Center>
+        ) : selectionRequired ? (
+          <Center py="xl">
+            <Text
+              fz={isGiantUp ? "xl" : "lg"}
+              fw={600}
+              ta="center"
+              px="lg"
+              py="md"
+              style={{ backgroundColor: "rgba(255, 255, 255, 0.9)", borderRadius: "var(--mantine-radius-md)" }}
+            >
+              {t("posterList.selectFiltersPrompt", {
+                filters: filters.map((f) => f.field.label.toLowerCase()).join(t("posterList.andOr")),
+              })}
+            </Text>
           </Center>
         ) : currentPagePosters.length === 0 ? (
           <Box>

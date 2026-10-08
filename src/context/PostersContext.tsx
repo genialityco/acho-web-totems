@@ -11,7 +11,15 @@ import { buildSnippet, normalizeSearchText, normalizeText, SearchSnippet } from 
 import { cosineSimilarity } from "../utils/vectorMath";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { trackEvent } from "../services/analytics";
-import { PostersContext, EventStatus, PublicFilter, SearchMode } from "./usePosters";
+import {
+  AdvancedSearch,
+  countAdvancedCriteria,
+  EMPTY_ADVANCED_SEARCH,
+  EventStatus,
+  PostersContext,
+  PublicFilter,
+  SearchMode,
+} from "./usePosters";
 
 // Umbral mínimo de caracteres antes de pedir un embedding de la búsqueda.
 const SEMANTIC_MIN_TERM_LENGTH = 3;
@@ -50,10 +58,11 @@ export const PostersProvider: React.FC<{
   const [searchTerm, setSearchTerm] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("exact");
   const [page, setPage] = useState(1);
-  // Por campo: opciones elegidas en su filtro (vacío = "Ver todos"), y si el visitante ya tocó ese
+  // Por campo: opciones elegidas en su filtro (vacío = no filtra por ese campo), y si el visitante ya tocó ese
   // filtro (revela el siguiente, si tiene revealAfterPrevious).
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({});
   const [touchedFilters, setTouchedFilters] = useState<Record<string, boolean>>({});
+  const [advancedSearch, setAdvancedSearch] = useState<AdvancedSearch>(EMPTY_ADVANCED_SEARCH);
 
   const [searchIndexByPaperId, setSearchIndexByPaperId] = useState<Map<string, PaperSearchIndex>>(new Map());
   const [queryEmbedding, setQueryEmbedding] = useState<number[] | null>(null);
@@ -178,7 +187,7 @@ export const PostersProvider: React.FC<{
   }, [searchIndexByPaperId]);
 
   // Filtros visibles, en orden: uno con revealAfterPrevious solo aparece si el anterior está visible
-  // y el visitante ya eligió algo en él (una opción o "Ver todos").
+  // y el visitante ya tocó una opción en él.
   const visibleFilterFields = useMemo(() => {
     const visible: PaperField[] = [];
     let previous: { field: PaperField; visible: boolean } | null = null;
@@ -192,13 +201,15 @@ export const PostersProvider: React.FC<{
     return visible;
   }, [fields, touchedFilters]);
 
-  // Selección efectiva: solo de filtros visibles (uno oculto no filtra).
+  // Selección efectiva por campo de lista: los que no son filtro público (solo se eligen en la búsqueda
+  // avanzada) y los filtros visibles (uno oculto no filtra).
   const activeSelections = useMemo(
     () =>
-      visibleFilterFields
+      fields
+        .filter((field) => isListField(field) && (field.filter === "none" || visibleFilterFields.includes(field)))
         .map((field) => ({ fieldId: field.id, selected: selectedOptions[field.id] ?? [] }))
         .filter(({ selected }) => selected.length > 0),
-    [visibleFilterFields, selectedOptions]
+    [fields, visibleFilterFields, selectedOptions]
   );
 
   const { filteredPosters, filterCounts, semanticOnlyIds } = useMemo(() => {
@@ -253,23 +264,40 @@ export const PostersProvider: React.FC<{
 
     // Cada conteo ignora su propio filtro (para mostrar cuántos habría al elegir esa opción) pero
     // respeta la búsqueda y todos los demás filtros.
+    // Búsqueda avanzada: todos los criterios deben cumplirse (sin tildes ni mayúsculas).
+    const includes = (text: string, criterion: string) =>
+      !criterion.trim() || normalizeSearchText(text).includes(normalizeSearchText(criterion));
+    const matchesAdvanced = (paper: Paper) =>
+      includes(paper.title, advancedSearch.title) &&
+      (!advancedSearch.authors.trim() || paper.authors.some((a) => includes(a, advancedSearch.authors))) &&
+      (!advancedSearch.body.trim() ||
+        !!bodyByPaperId.get(paper.id)?.folded.includes(normalizeSearchText(advancedSearch.body))) &&
+      Object.entries(advancedSearch.text).every(([fieldId, criterion]) =>
+        includes(String(paper.attributes[fieldId] ?? ""), criterion)
+      ) &&
+      Object.entries(advancedSearch.ranges).every(([fieldId, { min, max }]) => {
+        if (min === null && max === null) return true;
+        const value = paper.attributes[fieldId];
+        if (typeof value !== "number") return false;
+        return (min === null || value >= min) && (max === null || value <= max);
+      });
+
     const matches = (paper: Paper, ignoreFieldId: string | null) =>
       searchScore(paper) !== null &&
+      matchesAdvanced(paper) &&
       activeSelections.every(
         ({ fieldId, selected }) =>
           fieldId === ignoreFieldId || optionIdsOf(paper.attributes[fieldId]).some((id) => selected.includes(id))
       );
 
-    const counts = new Map<string, { all: number; byOption: Map<string, number> }>();
+    const counts = new Map<string, Map<string, number>>();
     visibleFilterFields.forEach((field) => {
       const byOption = new Map<string, number>();
-      let all = 0;
       posters.forEach((paper) => {
         if (!matches(paper, field.id)) return;
-        all += 1;
         optionIdsOf(paper.attributes[field.id]).forEach((id) => byOption.set(id, (byOption.get(id) ?? 0) + 1));
       });
-      counts.set(field.id, { all, byOption });
+      counts.set(field.id, byOption);
     });
 
     const filtered = posters.filter((paper) => matches(paper, null));
@@ -301,6 +329,7 @@ export const PostersProvider: React.FC<{
     searchTerm,
     visibleFilterFields,
     activeSelections,
+    advancedSearch,
     searchMode,
     searchIndexByPaperId,
     bodyByPaperId,
@@ -332,28 +361,40 @@ export const PostersProvider: React.FC<{
         const count = filterCounts.get(field.id);
         return {
           field,
-          options: field.options.map((o) => ({ ...o, count: count?.byOption.get(o.id) ?? 0 })),
-          allCount: count?.all ?? 0,
+          options: field.options.map((o) => ({ ...o, count: count?.get(o.id) ?? 0 })),
           selected: selectedOptions[field.id] ?? [],
         };
       }),
     [visibleFilterFields, filterCounts, selectedOptions]
   );
 
-  const toggleFilterOption = (fieldId: string, optionId: string | null) => {
+  const toggleFilterOption = (fieldId: string, optionId: string) => {
     setSelectedOptions((prev) => {
       const current = prev[fieldId] ?? [];
-      const next =
-        optionId === null
-          ? []
-          : current.includes(optionId)
-          ? current.filter((id) => id !== optionId)
-          : [...current, optionId];
+      const next = current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId];
       return { ...prev, [fieldId]: next };
     });
     setTouchedFilters((prev) => ({ ...prev, [fieldId]: true }));
     setPage(1);
   };
+
+  const setFieldSelection = (fieldId: string, optionIds: string[]) => {
+    setSelectedOptions((prev) => ({ ...prev, [fieldId]: optionIds }));
+    if (optionIds.length) setTouchedFilters((prev) => ({ ...prev, [fieldId]: true }));
+    setPage(1);
+  };
+
+  const updateAdvancedSearch = (search: AdvancedSearch) => {
+    setAdvancedSearch(search);
+    setPage(1);
+  };
+
+  // Con filtros y sin nada elegido ni buscado (normal o avanzado) no se listan pósters: se pide elegir primero.
+  const selectionRequired =
+    filters.length > 0 &&
+    activeSelections.length === 0 &&
+    !normalizeText(searchTerm) &&
+    countAdvancedCriteria(advancedSearch) === 0;
 
   // El primer filtro de tarjetas de colores da el color de cada póster (borde y etiqueta).
   const colorField = fields.find((f) => isListField(f) && f.filter === "cards");
@@ -411,6 +452,11 @@ export const PostersProvider: React.FC<{
         fields,
         filters,
         toggleFilterOption,
+        selectionRequired,
+        selectedOptions,
+        setFieldSelection,
+        advancedSearch,
+        setAdvancedSearch: updateAdvancedSearch,
         getPaperColor,
       }}
     >
