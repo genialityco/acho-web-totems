@@ -14,19 +14,22 @@ const HEADERS = [
   "year",
   "country",
   "identificationCode",
+  "studyType",
 ];
 
 export default function PapersBulkUpload() {
-  const { eventSlug, categories, papers } = useAdminEvent();
+  const { eventSlug, event, categories, papers } = useAdminEvent();
 
   const validate = (rawRows: RawRow[]): PreviewRow<PaperInput>[] => {
     const categoryIdByName = new Map(categories.map((c) => [normalizeText(c.name), c.id]));
+    const studyTypeByName = new Map((event?.studyTypes ?? []).map((s) => [normalizeText(s), s]));
     const existingTitles = new Set(papers.map((p) => normalizeText(p.title)));
     const seenTitles = new Set<string>();
 
     return rawRows.map((raw) => {
       const cells = HEADERS.map((header) => getCell(raw, header));
-      const [title, authors, institution, categoryName, theme, urlPdf, yearRaw, country, identificationCode] = cells;
+      const [title, authors, institution, categoryName, theme, urlPdf, yearRaw, country, identificationCode, studyTypeName] =
+        cells;
       const error = (message: string): PreviewRow<PaperInput> => ({ cells, status: "ERROR", message });
 
       if (!title) return error("Falta el título");
@@ -42,6 +45,12 @@ export default function PapersBulkUpload() {
       if (categoryName) {
         categoryId = categoryIdByName.get(normalizeText(categoryName)) ?? null;
         if (!categoryId) return error(`La categoría "${categoryName}" no existe; créala primero`);
+      }
+
+      let studyType: string | null = null;
+      if (studyTypeName) {
+        studyType = studyTypeByName.get(normalizeText(studyTypeName)) ?? null;
+        if (!studyType) return error(`El tipo de estudio "${studyTypeName}" no existe; agrégalo en «Editar evento»`);
       }
 
       const titleKey = normalizeText(title);
@@ -65,6 +74,7 @@ export default function PapersBulkUpload() {
           urlVideo: null,
           categoryId,
           theme: theme || null,
+          studyType,
           year,
           country: country || null,
           identificationCode: identificationCode || null,
@@ -76,7 +86,7 @@ export default function PapersBulkUpload() {
   return (
     <BulkUploadPanel
       title="Carga masiva de papers"
-      hint="Una fila por paper. Separa varios autores con punto y coma (;). categoryName debe coincidir con el nombre de una categoría ya creada (o dejarse vacío). year, country e identificationCode son opcionales. Los papers con un título que ya existe se omiten, así que cargar dos veces el mismo archivo no duplica nada."
+      hint="Una fila por paper. Separa varios autores con punto y coma (;). categoryName debe coincidir con el nombre de una categoría ya creada (o dejarse vacío). studyType (opcional) debe coincidir con uno de los tipos de estudio del evento. year, country e identificationCode son opcionales. Los papers con un título que ya existe se omiten, así que cargar dos veces el mismo archivo no duplica nada."
       headers={HEADERS}
       templateFileName="papers_template.xlsx"
       reportFileName="papers_informe.xlsx"

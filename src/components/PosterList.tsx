@@ -56,11 +56,19 @@ export const PosterList = () => {
     page,
     setPage,
     totalPages,
-    selectedCategory,
-    setSelectedCategory,
+    event,
+    selectedCategories,
+    setSelectedCategories,
+    selectedStudyTypes,
+    setSelectedStudyTypes,
+    setStudyTypesRevealed,
+    studyTypesVisible,
     selectedTheme,
     setSelectedTheme,
     categories,
+    allCategoriesCount,
+    studyTypes,
+    allStudyTypesCount,
     themes,
     getCategoryName,
   } = usePosters();
@@ -98,10 +106,90 @@ export const PosterList = () => {
     setPage(1);
   };
 
-  const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(categoryId === selectedCategory ? null : categoryId);
+  // Selección múltiple: cada tarjeta se prende/apaga; null = "Ver todos" (vacía la selección).
+  // Cualquier elección en esta fila revela la de tipos de estudio.
+  const handleCategoryToggle = (categoryId: string | null) => {
+    setSelectedCategories(
+      categoryId === null
+        ? []
+        : selectedCategories.includes(categoryId)
+        ? selectedCategories.filter((id) => id !== categoryId)
+        : [...selectedCategories, categoryId]
+    );
+    setStudyTypesRevealed(true);
     setPage(1);
   };
+
+  const handleStudyTypeToggle = (studyType: string | null) => {
+    setSelectedStudyTypes(
+      studyType === null
+        ? []
+        : selectedStudyTypes.includes(studyType)
+        ? selectedStudyTypes.filter((s) => s !== studyType)
+        : [...selectedStudyTypes, studyType]
+    );
+    setPage(1);
+  };
+
+  const renderCategoryCard = (
+    key: string,
+    label: string,
+    count: number,
+    color: string | undefined,
+    active: boolean,
+    onSelect: () => void
+  ) => {
+    // "Ver todos" no tiene color propio: usa el color primario del tema.
+    const activeColor = color ? `var(--mantine-color-${color}-6)` : "var(--mantine-primary-color-filled)";
+    return (
+      <Card
+        key={key}
+        shadow="sm"
+        padding="lg"
+        role="button"
+        tabIndex={0}
+        aria-pressed={active}
+        style={{
+          cursor: "pointer",
+          border: active ? `2px solid ${activeColor}` : "1px solid #ddd",
+          backgroundColor: active ? activeColor : "#fff",
+          color: active ? "#fff" : "inherit",
+        }}
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+      >
+        <Group justify="flex-start" wrap="nowrap">
+          <Badge color={color} size="lg" radius="sm" variant={active && !color ? "white" : "filled"}>
+            {count}
+          </Badge>
+          <Text fw={500}>{label}</Text>
+        </Group>
+      </Card>
+    );
+  };
+
+  const renderStudyTypeButton = (key: string, label: string, count: number, active: boolean, onSelect: () => void) => (
+    <Button
+      key={key}
+      size={isTvUp ? "lg" : "md"}
+      radius="xl"
+      variant={active ? "filled" : "default"}
+      aria-pressed={active}
+      onClick={onSelect}
+      rightSection={
+        <Badge size="sm" variant={active ? "white" : "light"} radius="sm">
+          {count}
+        </Badge>
+      }
+    >
+      {label}
+    </Button>
+  );
 
   const handleThemeChange = (value: string | null) => {
     if (!isThemeLocked) {
@@ -135,10 +223,19 @@ export const PosterList = () => {
         }}
       >
         <Stack gap="xs">
-          {color && (
-            <Badge color={color} variant="light" size="sm" w="fit-content">
-              {getCategoryName(poster.categoryId)}
-            </Badge>
+          {(color || poster.studyType) && (
+            <Group gap={6} wrap="wrap">
+              {color && (
+                <Badge color={color} variant="light" size="sm">
+                  {getCategoryName(poster.categoryId)}
+                </Badge>
+              )}
+              {poster.studyType && (
+                <Badge color="gray" variant="outline" size="sm">
+                  {poster.studyType}
+                </Badge>
+              )}
+            </Group>
           )}
           <Text fw={600} fz={isGiantUp ? "xl" : isTvUp ? "lg" : "md"} lineClamp={4}>
             <HighlightedText text={poster.title} term={highlightTerm} />
@@ -252,44 +349,51 @@ export const PosterList = () => {
         {categories.length > 0 && (
           <Stack gap="xs">
             <Text fz={isTvUp ? "xl" : "lg"} fw={500}>
-              {t("posterList.categoriesHeading")}
+              {event?.categoriesLabel ?? t("posterList.categoriesHeading")}
             </Text>
             <SimpleGrid cols={categoryCols} spacing="sm">
+              {renderCategoryCard(
+                "__all__",
+                selectedCategories.length === 0 ? t("posterList.viewingAll") : t("posterList.viewAll"),
+                allCategoriesCount,
+                undefined,
+                selectedCategories.length === 0,
+                () => handleCategoryToggle(null)
+              )}
               {categories.map(({ id, name, count, color }) => {
-                const active = selectedCategory === id;
-                return (
-                  <Card
-                    key={id}
-                    shadow="sm"
-                    padding="lg"
-                    role="button"
-                    tabIndex={0}
-                    style={{
-                      cursor: "pointer",
-                      border: active ? `2px solid var(--mantine-color-${color}-6)` : "1px solid #ddd",
-                      backgroundColor: active ? `var(--mantine-color-${color}-6)` : "#fff",
-                      color: active ? "#fff" : "inherit",
-                    }}
-                    onClick={() => handleCategorySelect(id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleCategorySelect(id);
-                      }
-                    }}
-                  >
-                    <Group justify="flex-start" wrap="nowrap">
-                      <Badge color={color} size="lg" radius="sm">
-                        {count}
-                      </Badge>
-                      <Text fw={500}>
-                        {active ? t("posterList.categoryViewing", { name }) : t("posterList.categoryView", { name })}
-                      </Text>
-                    </Group>
-                  </Card>
+                const active = selectedCategories.includes(id);
+                return renderCategoryCard(
+                  id,
+                  active ? t("posterList.categoryViewing", { name }) : t("posterList.categoryView", { name }),
+                  count,
+                  color,
+                  active,
+                  () => handleCategoryToggle(id)
                 );
               })}
             </SimpleGrid>
+          </Stack>
+        )}
+
+        {studyTypesVisible && (
+          <Stack gap="xs">
+            <Text fz={isTvUp ? "xl" : "lg"} fw={500}>
+              {t("posterList.studyTypesHeading")}
+            </Text>
+            <Group gap="sm">
+              {renderStudyTypeButton(
+                "__all__",
+                t("posterList.viewAll"),
+                allStudyTypesCount,
+                selectedStudyTypes.length === 0,
+                () => handleStudyTypeToggle(null)
+              )}
+              {studyTypes.map(({ name, count }) =>
+                renderStudyTypeButton(name, name, count, selectedStudyTypes.includes(name), () =>
+                  handleStudyTypeToggle(name)
+                )
+              )}
+            </Group>
           </Stack>
         )}
 

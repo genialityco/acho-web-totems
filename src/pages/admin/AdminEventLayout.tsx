@@ -17,6 +17,7 @@ import {
   Stack,
   Switch,
   Tabs,
+  TagsInput,
   Text,
   TextInput,
   Title,
@@ -91,6 +92,8 @@ function EditEventModal({
   onClose: () => void;
 }) {
   const [name, setName] = useState(event.name);
+  const [categoriesLabel, setCategoriesLabel] = useState(event.categoriesLabel ?? "");
+  const [studyTypes, setStudyTypes] = useState<string[]>(event.studyTypes);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [removeBanner, setRemoveBanner] = useState(false);
   const [bannerProgress, setBannerProgress] = useState<number | null>(null);
@@ -131,7 +134,13 @@ function EditEventModal({
         backgroundUrl = null;
       }
 
-      await updateEvent(event.slug, { name: name.trim(), bannerUrl, backgroundUrl });
+      await updateEvent(event.slug, {
+        name: name.trim(),
+        bannerUrl,
+        backgroundUrl,
+        categoriesLabel: categoriesLabel.trim() || null,
+        studyTypes: Array.from(new Set(studyTypes.map((s) => s.trim()).filter(Boolean))),
+      });
 
       if (previousBannerUrl && previousBannerUrl !== bannerUrl) {
         // El evento ya quedó guardado con la imagen nueva (o sin imagen); la anterior es basura en Storage.
@@ -154,6 +163,21 @@ function EditEventModal({
     <Modal opened onClose={onClose} title="Editar evento" centered closeOnClickOutside={!saving} withCloseButton={!saving}>
       <Stack>
         <TextInput label="Nombre" value={name} onChange={(e) => setName(e.currentTarget.value)} data-autofocus />
+        <TextInput
+          label="Título de la sección de categorías"
+          description="Cómo se llama en el sitio público el filtro de categorías de este evento (ej. Especialización). Vacío = Categorías."
+          placeholder="Categorías"
+          value={categoriesLabel}
+          onChange={(e) => setCategoriesLabel(e.currentTarget.value)}
+        />
+        <TagsInput
+          label="Tipos de estudio"
+          description="Segundo filtro del sitio público, en este orden. Escribe uno y presiona Enter. Si renombras o quitas uno, los papers que lo tenían quedan sin tipo de estudio."
+          placeholder="Ej. Reporte de casos"
+          value={studyTypes}
+          onChange={setStudyTypes}
+          clearable
+        />
         <EventImageField
           label="Imagen del banner"
           description="Cabecera del sitio público: ocupa el 100% del ancho y su alto se ajusta entre 80 y 200px según la pantalla. Tamaño ideal: 2000×200 px (horizontal, relación ~10:1) para que no se recorte en alto en desktop. Máx. 5 MB. Vacío = logo de ACHO por defecto."

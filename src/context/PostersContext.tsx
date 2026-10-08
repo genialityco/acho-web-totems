@@ -50,7 +50,9 @@ export const PostersProvider: React.FC<{
   const [searchTerm, setSearchTerm] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("exact");
   const [page, setPage] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedStudyTypes, setSelectedStudyTypes] = useState<string[]>([]);
+  const [studyTypesRevealed, setStudyTypesRevealed] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
   const [searchIndexByPaperId, setSearchIndexByPaperId] = useState<Map<string, PaperSearchIndex>>(new Map());
@@ -175,7 +177,15 @@ export const PostersProvider: React.FC<{
     return bodies;
   }, [searchIndexByPaperId]);
 
-  const { filteredPosters, categoryCounts, semanticOnlyIds } = useMemo(() => {
+  const eventStudyTypes = event?.studyTypes;
+  const studyTypesVisible =
+    !!eventStudyTypes?.length && (studyTypesRevealed || (categoriesLoaded && categoryList.length === 0));
+  const activeStudyTypes = useMemo(
+    () => (studyTypesVisible ? selectedStudyTypes : []),
+    [studyTypesVisible, selectedStudyTypes]
+  );
+
+  const { filteredPosters, categoryCounts, allCategoriesCount, studyTypeCounts, allStudyTypesCount, semanticOnlyIds } = useMemo(() => {
     const term = normalizeSearchText(searchTerm);
 
     // Título > autor > cuerpo del PDF (solo si ya está indexado). Devuelve 0
@@ -225,22 +235,38 @@ export const PostersProvider: React.FC<{
       return semanticScore(paper);
     };
 
-    const matches = (paper: Paper, ignoreCategory: boolean) => {
+    // Cada conteo ignora su propio filtro (para mostrar cuántos habría al elegir esa opción) pero
+    // respeta todos los demás.
+    const matches = (paper: Paper, ignore: "category" | "studyType" | null) => {
       const matchesSearch = searchScore(paper) !== null;
       const matchesCategory =
-        ignoreCategory || !selectedCategory || paper.categoryId === selectedCategory;
+        ignore === "category" ||
+        selectedCategories.length === 0 ||
+        (!!paper.categoryId && selectedCategories.includes(paper.categoryId));
+      const matchesStudyType =
+        ignore === "studyType" ||
+        activeStudyTypes.length === 0 ||
+        (!!paper.studyType && activeStudyTypes.includes(paper.studyType));
       const matchesTheme = !selectedTheme || paper.theme === selectedTheme;
-      return matchesSearch && matchesCategory && matchesTheme;
+      return matchesSearch && matchesCategory && matchesStudyType && matchesTheme;
     };
 
     const counts = new Map<string, number>();
+    let allCategories = 0;
+    const studyCounts = new Map<string, number>();
+    let allStudy = 0;
     posters.forEach((paper) => {
-      if (paper.categoryId && matches(paper, true)) {
-        counts.set(paper.categoryId, (counts.get(paper.categoryId) ?? 0) + 1);
+      if (matches(paper, "category")) {
+        allCategories += 1;
+        if (paper.categoryId) counts.set(paper.categoryId, (counts.get(paper.categoryId) ?? 0) + 1);
+      }
+      if (matches(paper, "studyType")) {
+        allStudy += 1;
+        if (paper.studyType) studyCounts.set(paper.studyType, (studyCounts.get(paper.studyType) ?? 0) + 1);
       }
     });
 
-    const filtered = posters.filter((paper) => matches(paper, false));
+    const filtered = posters.filter((paper) => matches(paper, null));
     // posters ya llega alfabético (subscribePapers); sort() es estable, así
     // que ese orden queda como desempate cuando el puntaje es igual.
     if (term) {
@@ -262,9 +288,22 @@ export const PostersProvider: React.FC<{
     return {
       filteredPosters: filtered,
       categoryCounts: counts,
+      allCategoriesCount: allCategories,
+      studyTypeCounts: studyCounts,
+      allStudyTypesCount: allStudy,
       semanticOnlyIds: semanticOnly,
     };
-  }, [posters, searchTerm, selectedCategory, selectedTheme, searchMode, searchIndexByPaperId, bodyByPaperId, queryEmbedding]);
+  }, [
+    posters,
+    searchTerm,
+    selectedCategories,
+    activeStudyTypes,
+    selectedTheme,
+    searchMode,
+    searchIndexByPaperId,
+    bodyByPaperId,
+    queryEmbedding,
+  ]);
 
   // Analítica de búsqueda: un evento por búsqueda (no por tecla), y solo cuando el resultado
   // ya es válido (en modo semántico/ambas espera a que llegue el embedding de la consulta).
@@ -288,6 +327,11 @@ export const PostersProvider: React.FC<{
   const categories = useMemo(
     () => categoryList.map((c) => ({ ...c, count: categoryCounts.get(c.id) ?? 0 })),
     [categoryList, categoryCounts]
+  );
+
+  const studyTypes = useMemo(
+    () => (eventStudyTypes ?? []).map((name) => ({ name, count: studyTypeCounts.get(name) ?? 0 })),
+    [eventStudyTypes, studyTypeCounts]
   );
 
   const themes = useMemo(
@@ -346,11 +390,18 @@ export const PostersProvider: React.FC<{
         page: currentPage,
         setPage,
         totalPages,
-        selectedCategory,
-        setSelectedCategory,
+        selectedCategories,
+        setSelectedCategories,
+        selectedStudyTypes,
+        setSelectedStudyTypes,
+        setStudyTypesRevealed,
+        studyTypesVisible,
         selectedTheme,
         setSelectedTheme,
         categories,
+        allCategoriesCount,
+        studyTypes,
+        allStudyTypesCount,
         themes,
         getCategoryName,
       }}

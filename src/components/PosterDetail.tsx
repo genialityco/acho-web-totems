@@ -217,7 +217,7 @@ const PosterDetail = () => {
   return (
     <Container fluid>
       <Text c="dimmed" style={{ marginTop: -15 }}>
-        {[getCategoryName(poster.categoryId), poster.theme].filter(Boolean).join(" / ")}
+        {[getCategoryName(poster.categoryId), poster.studyType, poster.theme].filter(Boolean).join(" / ")}
       </Text>
       <Group justify="space-around" mb="md">
         <Button

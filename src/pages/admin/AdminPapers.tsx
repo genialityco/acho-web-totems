@@ -103,7 +103,7 @@ function PaperFormModal({
   onClose: () => void;
   onSave: (input: PaperInput) => Promise<void>;
 }) {
-  const { eventSlug, categories, papers } = useAdminEvent();
+  const { eventSlug, event, categories, papers } = useAdminEvent();
   const [title, setTitle] = useState("");
   const [authors, setAuthors] = useState("");
   const [institution, setInstitution] = useState("");
@@ -112,6 +112,7 @@ function PaperFormModal({
   const [removeVideo, setRemoveVideo] = useState(false);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [theme, setTheme] = useState("");
+  const [studyType, setStudyType] = useState<string | null>(null);
   const [year, setYear] = useState<number | "">("");
   const [country, setCountry] = useState("");
   const [identificationCode, setIdentificationCode] = useState("");
@@ -125,6 +126,13 @@ function PaperFormModal({
     [papers]
   );
 
+  // Los del evento, más el actual del paper si ya no está en la lista (renombrado o quitado),
+  // para que el select no lo muestre vacío ni lo borre sin que el admin lo note.
+  const studyTypeOptions = useMemo(() => {
+    const options = event?.studyTypes ?? [];
+    return paper?.studyType && !options.includes(paper.studyType) ? [...options, paper.studyType] : options;
+  }, [event, paper]);
+
   useEffect(() => {
     setTitle(paper?.title ?? "");
     setAuthors(paper?.authors.join("\n") ?? "");
@@ -134,6 +142,7 @@ function PaperFormModal({
     setRemoveVideo(false);
     setCategoryId(paper?.categoryId ?? null);
     setTheme(paper?.theme ?? "");
+    setStudyType(paper?.studyType ?? null);
     setYear(paper?.year ?? "");
     setCountry(paper?.country ?? "");
     setIdentificationCode(paper?.identificationCode ?? "");
@@ -177,6 +186,7 @@ function PaperFormModal({
         urlVideo,
         categoryId,
         theme: theme.trim() || null,
+        studyType,
         year: year === "" ? null : year,
         country: country.trim() || null,
         identificationCode: identificationCode.trim() || null,
@@ -281,6 +291,17 @@ function PaperFormModal({
           clearable
           placeholder="Sin categoría"
         />
+        {studyTypeOptions.length > 0 && (
+          <Select
+            label="Tipo de estudio"
+            description="Opcional. La lista se edita en «Editar evento»."
+            data={studyTypeOptions}
+            value={studyType}
+            onChange={setStudyType}
+            clearable
+            placeholder="Sin tipo de estudio"
+          />
+        )}
         <Autocomplete
           label="Tema"
           description="Texto libre; aparece en el filtro de temas del sitio público."
@@ -471,6 +492,7 @@ export default function AdminPapers() {
                 <Table.Th>Título</Table.Th>
                 <Table.Th>Autores</Table.Th>
                 <Table.Th>Categoría</Table.Th>
+                <Table.Th>Tipo de estudio</Table.Th>
                 <Table.Th>Tema</Table.Th>
                 <Table.Th>Votos</Table.Th>
                 <Table.Th>Vistas</Table.Th>
@@ -485,6 +507,7 @@ export default function AdminPapers() {
                   <Table.Td>{paper.title}</Table.Td>
                   <Table.Td>{paper.authors.join("; ")}</Table.Td>
                   <Table.Td>{categoryName(paper.categoryId)}</Table.Td>
+                  <Table.Td>{paper.studyType ?? "—"}</Table.Td>
                   <Table.Td>{paper.theme ?? "—"}</Table.Td>
                   <Table.Td>{paper.voteCount}</Table.Td>
                   <Table.Td>{paper.viewCount}</Table.Td>

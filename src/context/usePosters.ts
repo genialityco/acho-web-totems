@@ -9,6 +9,8 @@ export type EventStatus = "loading" | "ready" | "not-found" | "error";
 
 export type CategoryWithCount = Category & { count: number };
 
+export type StudyTypeWithCount = { name: string; count: number };
+
 export type SearchMode = "exact" | "semantic" | "both";
 
 export type PostersContextType = {
@@ -38,11 +40,24 @@ export type PostersContextType = {
   page: number;
   setPage: (page: number) => void;
   totalPages: number;
-  selectedCategory: string | null;
-  setSelectedCategory: (categoryId: string | null) => void;
+  // Filtros de selección múltiple: una lista vacía = "Ver todos" (no filtra).
+  selectedCategories: string[];
+  setSelectedCategories: (categoryIds: string[]) => void;
+  selectedStudyTypes: string[];
+  setSelectedStudyTypes: (studyTypes: string[]) => void;
+  // La fila de tipos de estudio aparece después de que el visitante elige algo en la de categorías
+  // (una o varias, o "Ver todos"); si el evento no tiene categorías se muestra desde el inicio.
+  // Mientras la fila está oculta, selectedStudyTypes no filtra.
+  setStudyTypesRevealed: (revealed: boolean) => void;
+  studyTypesVisible: boolean;
   selectedTheme: string | null;
   setSelectedTheme: (theme: string | null) => void;
   categories: CategoryWithCount[];
+  // Pósters que pasan los demás filtros sin importar la categoría (el número de "Ver todos").
+  allCategoriesCount: number;
+  // Tipos de estudio del evento con su conteo (ignora el filtro de tipo, respeta el de categoría).
+  studyTypes: StudyTypeWithCount[];
+  allStudyTypesCount: number;
   themes: string[];
   getCategoryName: (categoryId: string | null) => string;
 };

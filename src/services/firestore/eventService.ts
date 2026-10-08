@@ -34,6 +34,12 @@ export interface EventInfo {
   // "anonymous": no se pide cédula; el cliente genera un id aleatorio y lo guarda en localStorage
   // (ver utils/anonymousVoter.ts), así que la deduplicación es por navegador/dispositivo, no por persona.
   voteMode: VoteMode;
+  // Título de la sección de categorías en el sitio público (ej. "Especialización"); null = el
+  // texto traducido por defecto ("Categorías"). Es contenido del evento, no se traduce.
+  categoriesLabel: string | null;
+  // Tipos de estudio del evento, en el orden en que se muestran como filtro público. Cada paper
+  // guarda el nombre (Paper.studyType): renombrar uno aquí deja a sus papers sin tipo hasta reasignarlos.
+  studyTypes: string[];
 }
 
 export type VoteMode = "registered" | "open" | "anonymous";
@@ -65,6 +71,10 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
   ),
   searchExplanationsEnabled: data.searchExplanationsEnabled === true,
   voteMode: toVoteMode(data),
+  categoriesLabel: typeof data.categoriesLabel === "string" && data.categoriesLabel.trim() ? data.categoriesLabel.trim() : null,
+  studyTypes: Array.isArray(data.studyTypes)
+    ? data.studyTypes.filter((s: unknown): s is string => typeof s === "string" && !!s.trim())
+    : [],
 });
 
 // Suscripción en vivo al evento; entrega null si el slug no existe.
@@ -116,6 +126,8 @@ export const updateEvent = (
       | "screensaverPhotoDurationSeconds"
       | "searchExplanationsEnabled"
       | "voteMode"
+      | "categoriesLabel"
+      | "studyTypes"
     >
   >
 ) => updateDoc(doc(db, "events", slug), changes);

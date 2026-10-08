@@ -23,6 +23,8 @@ export interface Paper {
   urlVideo: string | null;
   categoryId: string | null;
   theme: string | null;
+  // Tipo de estudio (opcional): uno de los EventInfo.studyTypes del evento, guardado por nombre.
+  studyType: string | null;
   year: number | null;
   country: string | null;
   identificationCode: string | null;
@@ -67,6 +69,7 @@ export const subscribePapers = (
           urlVideo: asString(data.urlVideo) || null,
           categoryId: asString(data.categoryId) || null,
           theme: asString(data.theme) || null,
+          studyType: asString(data.studyType) || null,
           year: typeof data.year === "number" ? data.year : null,
           country: asString(data.country) || null,
           identificationCode: asString(data.identificationCode) || null,
