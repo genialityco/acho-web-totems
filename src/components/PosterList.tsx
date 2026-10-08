@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import {
   TextInput,
   Card,
@@ -11,10 +11,8 @@ import {
   SimpleGrid,
   Stack,
   Box,
-  Select,
   SegmentedControl,
   Badge,
-  ActionIcon,
   Center,
   Pagination,
   Tooltip,
@@ -23,18 +21,12 @@ import { useMediaQuery } from "@mantine/hooks";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePosters, SearchMode } from "../context/usePosters";
+import { formatAttribute, isListField, selectedOptions } from "../services/firestore/fieldService";
 import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { HighlightedText } from "./HighlightedText";
 import { MatchExplanation } from "./MatchExplanation";
-import {
-  IconCalendarEvent,
-  IconId,
-  IconLock,
-  IconLockAccessOff,
-  IconMapPin,
-  IconSearchOff,
-} from "@tabler/icons-react";
+import { IconSearchOff } from "@tabler/icons-react";
 import "./PosterList.css";
 
 export const PosterList = () => {
@@ -56,24 +48,11 @@ export const PosterList = () => {
     page,
     setPage,
     totalPages,
-    event,
-    selectedCategories,
-    setSelectedCategories,
-    selectedStudyTypes,
-    setSelectedStudyTypes,
-    setStudyTypesRevealed,
-    studyTypesVisible,
-    selectedTheme,
-    setSelectedTheme,
-    categories,
-    allCategoriesCount,
-    studyTypes,
-    allStudyTypesCount,
-    themes,
-    getCategoryName,
+    fields,
+    filters,
+    toggleFilterOption,
+    getPaperColor,
   } = usePosters();
-
-  const [isThemeLocked, setIsThemeLocked] = useState(false);
 
   // Columnas: solo por ancho (una pantalla angosta necesita cards angostas para que
   // el poster se lea bien, sea o no alta/TV). En 1080px de ancho esto da 2 columnas,
@@ -91,10 +70,10 @@ export const PosterList = () => {
     `(min-width: ${RESPONSIVE_BREAKPOINTS_EM.giant}), (min-height: ${RESPONSIVE_BREAKPOINTS_EM.giant})`
   );
 
-  const categoryColorById = useMemo(
-    () => new Map(categories.map((c) => [c.id, c.color])),
-    [categories]
-  );
+  // Campos que se muestran en la tarjeta: los de lista como etiquetas arriba del título, los de
+  // texto/número como etiquetas grises (con el nombre del campo en el tooltip) debajo.
+  const cardListFields = useMemo(() => fields.filter((f) => f.showOnCard && isListField(f)), [fields]);
+  const cardValueFields = useMemo(() => fields.filter((f) => f.showOnCard && !isListField(f)), [fields]);
 
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
@@ -106,32 +85,7 @@ export const PosterList = () => {
     setPage(1);
   };
 
-  // Selección múltiple: cada tarjeta se prende/apaga; null = "Ver todos" (vacía la selección).
-  // Cualquier elección en esta fila revela la de tipos de estudio.
-  const handleCategoryToggle = (categoryId: string | null) => {
-    setSelectedCategories(
-      categoryId === null
-        ? []
-        : selectedCategories.includes(categoryId)
-        ? selectedCategories.filter((id) => id !== categoryId)
-        : [...selectedCategories, categoryId]
-    );
-    setStudyTypesRevealed(true);
-    setPage(1);
-  };
-
-  const handleStudyTypeToggle = (studyType: string | null) => {
-    setSelectedStudyTypes(
-      studyType === null
-        ? []
-        : selectedStudyTypes.includes(studyType)
-        ? selectedStudyTypes.filter((s) => s !== studyType)
-        : [...selectedStudyTypes, studyType]
-    );
-    setPage(1);
-  };
-
-  const renderCategoryCard = (
+  const renderFilterCard = (
     key: string,
     label: string,
     count: number,
@@ -139,7 +93,7 @@ export const PosterList = () => {
     active: boolean,
     onSelect: () => void
   ) => {
-    // "Ver todos" no tiene color propio: usa el color primario del tema.
+    // "Ver todos" (y las opciones sin color) usan el color primario del tema.
     const activeColor = color ? `var(--mantine-color-${color}-6)` : "var(--mantine-primary-color-filled)";
     return (
       <Card
@@ -173,7 +127,7 @@ export const PosterList = () => {
     );
   };
 
-  const renderStudyTypeButton = (key: string, label: string, count: number, active: boolean, onSelect: () => void) => (
+  const renderFilterButton = (key: string, label: string, count: number, active: boolean, onSelect: () => void) => (
     <Button
       key={key}
       size={isTvUp ? "lg" : "md"}
@@ -191,20 +145,20 @@ export const PosterList = () => {
     </Button>
   );
 
-  const handleThemeChange = (value: string | null) => {
-    if (!isThemeLocked) {
-      setSelectedTheme(value);
-      setPage(1);
-    }
-  };
-
-  const toggleThemeLock = () => {
-    setIsThemeLocked((prev) => !prev);
-  };
-
   const renderPoster = (poster: Paper) => {
-    const color = poster.categoryId ? categoryColorById.get(poster.categoryId) : undefined;
+    const color = getPaperColor(poster);
     const snippet = getBodySnippet(poster.id);
+    const listBadges = cardListFields.flatMap((field) =>
+      selectedOptions(field, poster.attributes[field.id]).map((option) => ({
+        key: `${field.id}:${option.id}`,
+        name: option.name,
+        // Solo los filtros de tarjetas de colores pintan sus etiquetas.
+        color: field.filter === "cards" && option.color ? option.color : null,
+      }))
+    );
+    const valueBadges = cardValueFields
+      .map((field) => ({ field, text: formatAttribute(field, poster.attributes[field.id]) }))
+      .filter(({ text }) => text);
 
     return (
       <Card
@@ -223,56 +177,32 @@ export const PosterList = () => {
         }}
       >
         <Stack gap="xs">
-          {(color || poster.studyType) && (
+          {listBadges.length > 0 && (
             <Group gap={6} wrap="wrap">
-              {color && (
-                <Badge color={color} variant="light" size="sm">
-                  {getCategoryName(poster.categoryId)}
+              {listBadges.map((badge) => (
+                <Badge
+                  key={badge.key}
+                  color={badge.color ?? "gray"}
+                  variant={badge.color ? "light" : "outline"}
+                  size="sm"
+                >
+                  {badge.name}
                 </Badge>
-              )}
-              {poster.studyType && (
-                <Badge color="gray" variant="outline" size="sm">
-                  {poster.studyType}
-                </Badge>
-              )}
+              ))}
             </Group>
           )}
           <Text fw={600} fz={isGiantUp ? "xl" : isTvUp ? "lg" : "md"} lineClamp={4}>
             <HighlightedText text={poster.title} term={highlightTerm} />
           </Text>
-          {poster.theme && (
-            <Text size="sm" c="dimmed">
-              {poster.theme}
-            </Text>
-          )}
-          {(poster.year || poster.country || poster.identificationCode) && (
+          {valueBadges.length > 0 && (
             <Group gap={6} wrap="wrap">
-              {poster.year && (
-                <Tooltip label={t("posterList.yearLabel")}>
-                  <Badge
-                    variant="light"
-                    color="gray"
-                    size="sm"
-                    leftSection={<IconCalendarEvent size={12} />}
-                  >
-                    {poster.year}
+              {valueBadges.map(({ field, text }) => (
+                <Tooltip key={field.id} label={field.label}>
+                  <Badge variant="light" color="gray" size="sm">
+                    {text}
                   </Badge>
                 </Tooltip>
-              )}
-              {poster.country && (
-                <Tooltip label={t("posterList.countryLabel")}>
-                  <Badge variant="light" color="gray" size="sm" leftSection={<IconMapPin size={12} />}>
-                    {poster.country}
-                  </Badge>
-                </Tooltip>
-              )}
-              {poster.identificationCode && (
-                <Tooltip label={t("posterList.identificationCodeLabel")}>
-                  <Badge variant="light" color="gray" size="sm" leftSection={<IconId size={12} />}>
-                    {poster.identificationCode}
-                  </Badge>
-                </Tooltip>
-              )}
+              ))}
             </Group>
           )}
           <Text size="sm" c="dimmed">
@@ -346,75 +276,56 @@ export const PosterList = () => {
           </Group>
         </Stack>
 
-        {categories.length > 0 && (
-          <Stack gap="xs">
-            <Text fz={isTvUp ? "xl" : "lg"} fw={500}>
-              {event?.categoriesLabel ?? t("posterList.categoriesHeading")}
-            </Text>
-            <SimpleGrid cols={categoryCols} spacing="sm">
-              {renderCategoryCard(
-                "__all__",
-                selectedCategories.length === 0 ? t("posterList.viewingAll") : t("posterList.viewAll"),
-                allCategoriesCount,
-                undefined,
-                selectedCategories.length === 0,
-                () => handleCategoryToggle(null)
+        {filters.map(({ field, options, allCount, selected }) => {
+          const allActive = selected.length === 0;
+          return (
+            <Stack key={field.id} gap="xs">
+              {/* Fondo claro propio: el título va directo sobre la imagen de fondo del evento. */}
+              <Text
+                fz={isTvUp ? "xl" : "lg"}
+                fw={600}
+                px="sm"
+                py={2}
+                w="fit-content"
+                style={{ backgroundColor: "rgba(255, 255, 255, 0.85)", borderRadius: "var(--mantine-radius-sm)" }}
+              >
+                {field.label}
+              </Text>
+              {field.filter === "cards" ? (
+                <SimpleGrid cols={categoryCols} spacing="sm">
+                  {renderFilterCard(
+                    "__all__",
+                    allActive ? t("posterList.viewingAll") : t("posterList.viewAll"),
+                    allCount,
+                    undefined,
+                    allActive,
+                    () => toggleFilterOption(field.id, null)
+                  )}
+                  {options.map(({ id, name, count, color }) => {
+                    const active = selected.includes(id);
+                    return renderFilterCard(
+                      id,
+                      active ? t("posterList.categoryViewing", { name }) : t("posterList.categoryView", { name }),
+                      count,
+                      color ?? undefined,
+                      active,
+                      () => toggleFilterOption(field.id, id)
+                    );
+                  })}
+                </SimpleGrid>
+              ) : (
+                <Group gap="sm">
+                  {renderFilterButton("__all__", t("posterList.viewAll"), allCount, allActive, () =>
+                    toggleFilterOption(field.id, null)
+                  )}
+                  {options.map(({ id, name, count }) =>
+                    renderFilterButton(id, name, count, selected.includes(id), () => toggleFilterOption(field.id, id))
+                  )}
+                </Group>
               )}
-              {categories.map(({ id, name, count, color }) => {
-                const active = selectedCategories.includes(id);
-                return renderCategoryCard(
-                  id,
-                  active ? t("posterList.categoryViewing", { name }) : t("posterList.categoryView", { name }),
-                  count,
-                  color,
-                  active,
-                  () => handleCategoryToggle(id)
-                );
-              })}
-            </SimpleGrid>
-          </Stack>
-        )}
-
-        {studyTypesVisible && (
-          <Stack gap="xs">
-            <Text fz={isTvUp ? "xl" : "lg"} fw={500}>
-              {t("posterList.studyTypesHeading")}
-            </Text>
-            <Group gap="sm">
-              {renderStudyTypeButton(
-                "__all__",
-                t("posterList.viewAll"),
-                allStudyTypesCount,
-                selectedStudyTypes.length === 0,
-                () => handleStudyTypeToggle(null)
-              )}
-              {studyTypes.map(({ name, count }) =>
-                renderStudyTypeButton(name, name, count, selectedStudyTypes.includes(name), () =>
-                  handleStudyTypeToggle(name)
-                )
-              )}
-            </Group>
-          </Stack>
-        )}
-
-        {themes.length > 0 && (
-          <Group justify="center">
-            <Select
-              placeholder={t("posterList.themeFilterPlaceholder")}
-              size="lg"
-              data={themes}
-              value={selectedTheme}
-              onChange={handleThemeChange}
-              clearable
-              disabled={isThemeLocked}
-              style={{ flexGrow: 1 }}
-            />
-
-            <ActionIcon onClick={toggleThemeLock} size="lg" variant="default">
-              {isThemeLocked ? <IconLock /> : <IconLockAccessOff />}
-            </ActionIcon>
-          </Group>
-        )}
+            </Stack>
+          );
+        })}
 
         {loading ? (
           <Center py="xl">

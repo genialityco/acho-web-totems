@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import debounce from "lodash.debounce";
 import { useMediaQuery } from "@mantine/hooks";
 import { subscribeEvent, EventInfo } from "../services/firestore/eventService";
-import { subscribeCategories, Category } from "../services/firestore/categoryService";
+import { isListField, optionIdsOf, PaperField, subscribeFields } from "../services/firestore/fieldService";
 import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
 import { subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
@@ -11,7 +11,7 @@ import { buildSnippet, normalizeSearchText, normalizeText, SearchSnippet } from 
 import { cosineSimilarity } from "../utils/vectorMath";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { trackEvent } from "../services/analytics";
-import { PostersContext, EventStatus, SearchMode } from "./usePosters";
+import { PostersContext, EventStatus, PublicFilter, SearchMode } from "./usePosters";
 
 // Umbral mínimo de caracteres antes de pedir un embedding de la búsqueda.
 const SEMANTIC_MIN_TERM_LENGTH = 3;
@@ -42,18 +42,18 @@ export const PostersProvider: React.FC<{
   const [eventLoaded, setEventLoaded] = useState(false);
   const [posters, setPosters] = useState<Paper[]>([]);
   const [postersLoaded, setPostersLoaded] = useState(false);
-  const [categoryList, setCategoryList] = useState<Category[]>([]);
-  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [fields, setFields] = useState<PaperField[]>([]);
+  const [fieldsLoaded, setFieldsLoaded] = useState(false);
   const [screensaverItems, setScreensaverItems] = useState<ScreensaverItem[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("exact");
   const [page, setPage] = useState(1);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedStudyTypes, setSelectedStudyTypes] = useState<string[]>([]);
-  const [studyTypesRevealed, setStudyTypesRevealed] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  // Por campo: opciones elegidas en su filtro (vacío = "Ver todos"), y si el visitante ya tocó ese
+  // filtro (revela el siguiente, si tiene revealAfterPrevious).
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({});
+  const [touchedFilters, setTouchedFilters] = useState<Record<string, boolean>>({});
 
   const [searchIndexByPaperId, setSearchIndexByPaperId] = useState<Map<string, PaperSearchIndex>>(new Map());
   const [queryEmbedding, setQueryEmbedding] = useState<number[] | null>(null);
@@ -95,11 +95,11 @@ export const PostersProvider: React.FC<{
         },
         fail
       ),
-      subscribeCategories(
+      subscribeFields(
         eventSlug,
         (list) => {
-          setCategoryList(list);
-          setCategoriesLoaded(true);
+          setFields(list);
+          setFieldsLoaded(true);
         },
         fail
       ),
@@ -162,7 +162,7 @@ export const PostersProvider: React.FC<{
     : event
     ? "ready"
     : "not-found";
-  const loading = eventStatus === "loading" || !postersLoaded || !categoriesLoaded;
+  const loading = eventStatus === "loading" || !postersLoaded || !fieldsLoaded;
 
   // Texto de cada PDF ya indexado: `text` con los espacios colapsados (es el que se muestra en el
   // fragmento) y `folded` en minúsculas y sin tildes (contra el que se compara). Se calcula al
@@ -177,15 +177,31 @@ export const PostersProvider: React.FC<{
     return bodies;
   }, [searchIndexByPaperId]);
 
-  const eventStudyTypes = event?.studyTypes;
-  const studyTypesVisible =
-    !!eventStudyTypes?.length && (studyTypesRevealed || (categoriesLoaded && categoryList.length === 0));
-  const activeStudyTypes = useMemo(
-    () => (studyTypesVisible ? selectedStudyTypes : []),
-    [studyTypesVisible, selectedStudyTypes]
+  // Filtros visibles, en orden: uno con revealAfterPrevious solo aparece si el anterior está visible
+  // y el visitante ya eligió algo en él (una opción o "Ver todos").
+  const visibleFilterFields = useMemo(() => {
+    const visible: PaperField[] = [];
+    let previous: { field: PaperField; visible: boolean } | null = null;
+    for (const field of fields) {
+      if (!isListField(field) || field.filter === "none") continue;
+      const isVisible: boolean =
+        !field.revealAfterPrevious || !previous || (previous.visible && !!touchedFilters[previous.field.id]);
+      if (isVisible) visible.push(field);
+      previous = { field, visible: isVisible };
+    }
+    return visible;
+  }, [fields, touchedFilters]);
+
+  // Selección efectiva: solo de filtros visibles (uno oculto no filtra).
+  const activeSelections = useMemo(
+    () =>
+      visibleFilterFields
+        .map((field) => ({ fieldId: field.id, selected: selectedOptions[field.id] ?? [] }))
+        .filter(({ selected }) => selected.length > 0),
+    [visibleFilterFields, selectedOptions]
   );
 
-  const { filteredPosters, categoryCounts, allCategoriesCount, studyTypeCounts, allStudyTypesCount, semanticOnlyIds } = useMemo(() => {
+  const { filteredPosters, filterCounts, semanticOnlyIds } = useMemo(() => {
     const term = normalizeSearchText(searchTerm);
 
     // Título > autor > cuerpo del PDF (solo si ya está indexado). Devuelve 0
@@ -236,34 +252,24 @@ export const PostersProvider: React.FC<{
     };
 
     // Cada conteo ignora su propio filtro (para mostrar cuántos habría al elegir esa opción) pero
-    // respeta todos los demás.
-    const matches = (paper: Paper, ignore: "category" | "studyType" | null) => {
-      const matchesSearch = searchScore(paper) !== null;
-      const matchesCategory =
-        ignore === "category" ||
-        selectedCategories.length === 0 ||
-        (!!paper.categoryId && selectedCategories.includes(paper.categoryId));
-      const matchesStudyType =
-        ignore === "studyType" ||
-        activeStudyTypes.length === 0 ||
-        (!!paper.studyType && activeStudyTypes.includes(paper.studyType));
-      const matchesTheme = !selectedTheme || paper.theme === selectedTheme;
-      return matchesSearch && matchesCategory && matchesStudyType && matchesTheme;
-    };
+    // respeta la búsqueda y todos los demás filtros.
+    const matches = (paper: Paper, ignoreFieldId: string | null) =>
+      searchScore(paper) !== null &&
+      activeSelections.every(
+        ({ fieldId, selected }) =>
+          fieldId === ignoreFieldId || optionIdsOf(paper.attributes[fieldId]).some((id) => selected.includes(id))
+      );
 
-    const counts = new Map<string, number>();
-    let allCategories = 0;
-    const studyCounts = new Map<string, number>();
-    let allStudy = 0;
-    posters.forEach((paper) => {
-      if (matches(paper, "category")) {
-        allCategories += 1;
-        if (paper.categoryId) counts.set(paper.categoryId, (counts.get(paper.categoryId) ?? 0) + 1);
-      }
-      if (matches(paper, "studyType")) {
-        allStudy += 1;
-        if (paper.studyType) studyCounts.set(paper.studyType, (studyCounts.get(paper.studyType) ?? 0) + 1);
-      }
+    const counts = new Map<string, { all: number; byOption: Map<string, number> }>();
+    visibleFilterFields.forEach((field) => {
+      const byOption = new Map<string, number>();
+      let all = 0;
+      posters.forEach((paper) => {
+        if (!matches(paper, field.id)) return;
+        all += 1;
+        optionIdsOf(paper.attributes[field.id]).forEach((id) => byOption.set(id, (byOption.get(id) ?? 0) + 1));
+      });
+      counts.set(field.id, { all, byOption });
     });
 
     const filtered = posters.filter((paper) => matches(paper, null));
@@ -287,18 +293,14 @@ export const PostersProvider: React.FC<{
 
     return {
       filteredPosters: filtered,
-      categoryCounts: counts,
-      allCategoriesCount: allCategories,
-      studyTypeCounts: studyCounts,
-      allStudyTypesCount: allStudy,
+      filterCounts: counts,
       semanticOnlyIds: semanticOnly,
     };
   }, [
     posters,
     searchTerm,
-    selectedCategories,
-    activeStudyTypes,
-    selectedTheme,
+    visibleFilterFields,
+    activeSelections,
     searchMode,
     searchIndexByPaperId,
     bodyByPaperId,
@@ -324,26 +326,42 @@ export const PostersProvider: React.FC<{
     debouncedTrackSearch(searchMode, filteredPosters.length > 0);
   }, [searchTerm, searchMode, filteredPosters.length, semanticSearchLoading, debouncedTrackSearch]);
 
-  const categories = useMemo(
-    () => categoryList.map((c) => ({ ...c, count: categoryCounts.get(c.id) ?? 0 })),
-    [categoryList, categoryCounts]
-  );
-
-  const studyTypes = useMemo(
-    () => (eventStudyTypes ?? []).map((name) => ({ name, count: studyTypeCounts.get(name) ?? 0 })),
-    [eventStudyTypes, studyTypeCounts]
-  );
-
-  const themes = useMemo(
+  const filters: PublicFilter[] = useMemo(
     () =>
-      Array.from(new Set(posters.map((paper) => paper.theme).filter((t): t is string => !!t))).sort(
-        (a, b) => a.localeCompare(b, "es")
-      ),
-    [posters]
+      visibleFilterFields.map((field) => {
+        const count = filterCounts.get(field.id);
+        return {
+          field,
+          options: field.options.map((o) => ({ ...o, count: count?.byOption.get(o.id) ?? 0 })),
+          allCount: count?.all ?? 0,
+          selected: selectedOptions[field.id] ?? [],
+        };
+      }),
+    [visibleFilterFields, filterCounts, selectedOptions]
   );
 
-  const getCategoryName = (categoryId: string | null) =>
-    categoryList.find((c) => c.id === categoryId)?.name ?? "";
+  const toggleFilterOption = (fieldId: string, optionId: string | null) => {
+    setSelectedOptions((prev) => {
+      const current = prev[fieldId] ?? [];
+      const next =
+        optionId === null
+          ? []
+          : current.includes(optionId)
+          ? current.filter((id) => id !== optionId)
+          : [...current, optionId];
+      return { ...prev, [fieldId]: next };
+    });
+    setTouchedFilters((prev) => ({ ...prev, [fieldId]: true }));
+    setPage(1);
+  };
+
+  // El primer filtro de tarjetas de colores da el color de cada póster (borde y etiqueta).
+  const colorField = fields.find((f) => isListField(f) && f.filter === "cards");
+  const getPaperColor = (paper: Paper) => {
+    if (!colorField) return null;
+    const ids = optionIdsOf(paper.attributes[colorField.id]);
+    return colorField.options.find((o) => ids.includes(o.id) && o.color)?.color ?? null;
+  };
 
   const highlightTerm = searchMode === "semantic" ? "" : searchTerm;
 
@@ -390,20 +408,10 @@ export const PostersProvider: React.FC<{
         page: currentPage,
         setPage,
         totalPages,
-        selectedCategories,
-        setSelectedCategories,
-        selectedStudyTypes,
-        setSelectedStudyTypes,
-        setStudyTypesRevealed,
-        studyTypesVisible,
-        selectedTheme,
-        setSelectedTheme,
-        categories,
-        allCategoriesCount,
-        studyTypes,
-        allStudyTypesCount,
-        themes,
-        getCategoryName,
+        fields,
+        filters,
+        toggleFilterOption,
+        getPaperColor,
       }}
     >
       {children}

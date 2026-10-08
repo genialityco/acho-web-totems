@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import type { EventInfo } from "../services/firestore/eventService";
-import type { Category } from "../services/firestore/categoryService";
+import type { PaperField } from "../services/firestore/fieldService";
 import type { Paper } from "../services/firestore/paperService";
 import type { Voter } from "../services/firestore/voterService";
 import type { VoteRecord } from "../services/firestore/voteService";
@@ -13,7 +13,7 @@ export type AdminEventContextType = {
   eventSlug: string;
   status: AdminEventStatus;
   event: EventInfo | null;
-  categories: Category[];
+  fields: PaperField[];
   papers: Paper[];
   voters: Voter[];
   votes: VoteRecord[];

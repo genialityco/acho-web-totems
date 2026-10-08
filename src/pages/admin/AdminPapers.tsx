@@ -4,33 +4,38 @@ import {
   ActionIcon,
   Alert,
   Anchor,
-  Autocomplete,
   Badge,
   Button,
   FileInput,
   Group,
   Modal,
-  NumberInput,
+  MultiSelect,
   Pagination,
   Progress,
   Select,
+  SimpleGrid,
   Stack,
   Table,
   Text,
   Textarea,
   TextInput,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 import {
+  IconChevronDown,
+  IconChevronUp,
   IconFileTypePdf,
   IconGitMerge,
   IconPencil,
   IconPlus,
   IconRefresh,
+  IconSelector,
   IconTrash,
   IconUpload,
   IconVideo,
 } from "@tabler/icons-react";
+import { AttributeInput } from "../../components/admin/AttributeInput";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { usePagination } from "../../components/admin/usePagination";
 import { useAdminEvent } from "../../context/useAdminEvent";
@@ -44,6 +49,15 @@ import {
   parseAuthors,
   updatePaper,
 } from "../../services/firestore/paperService";
+import {
+  AttributeValue,
+  compareAttributes,
+  formatAttribute,
+  hasValue,
+  isListField,
+  optionIdsOf,
+  PaperAttributes,
+} from "../../services/firestore/fieldService";
 import { PaperSearchIndex, PaperSearchIndexStatus } from "../../services/firestore/paperSearchIndexService";
 import { reindexPaperSearch } from "../../services/firestore/searchQueryService";
 import {
@@ -94,6 +108,12 @@ function SearchIndexBadge({
   );
 }
 
+// Columnas ordenables: fijas o un campo del evento (`field:<id>`).
+type SortKey = "title" | "votes" | "views" | "downloads" | `field:${string}`;
+
+// Opción especial de los filtros de la tabla: papers sin valor en ese campo.
+const NO_VALUE = "__none__";
+
 function PaperFormModal({
   paper,
   onClose,
@@ -103,35 +123,18 @@ function PaperFormModal({
   onClose: () => void;
   onSave: (input: PaperInput) => Promise<void>;
 }) {
-  const { eventSlug, event, categories, papers } = useAdminEvent();
+  const { eventSlug, fields } = useAdminEvent();
   const [title, setTitle] = useState("");
   const [authors, setAuthors] = useState("");
   const [institution, setInstitution] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [removeVideo, setRemoveVideo] = useState(false);
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [theme, setTheme] = useState("");
-  const [studyType, setStudyType] = useState<string | null>(null);
-  const [year, setYear] = useState<number | "">("");
-  const [country, setCountry] = useState("");
-  const [identificationCode, setIdentificationCode] = useState("");
+  const [attributes, setAttributes] = useState<PaperAttributes>({});
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const themes = useMemo(
-    () => Array.from(new Set(papers.map((p) => p.theme).filter((t): t is string => !!t))),
-    [papers]
-  );
-
-  // Los del evento, más el actual del paper si ya no está en la lista (renombrado o quitado),
-  // para que el select no lo muestre vacío ni lo borre sin que el admin lo note.
-  const studyTypeOptions = useMemo(() => {
-    const options = event?.studyTypes ?? [];
-    return paper?.studyType && !options.includes(paper.studyType) ? [...options, paper.studyType] : options;
-  }, [event, paper]);
 
   useEffect(() => {
     setTitle(paper?.title ?? "");
@@ -140,19 +143,31 @@ function PaperFormModal({
     setFile(null);
     setVideoFile(null);
     setRemoveVideo(false);
-    setCategoryId(paper?.categoryId ?? null);
-    setTheme(paper?.theme ?? "");
-    setStudyType(paper?.studyType ?? null);
-    setYear(paper?.year ?? "");
-    setCountry(paper?.country ?? "");
-    setIdentificationCode(paper?.identificationCode ?? "");
+    setAttributes(paper?.attributes ?? {});
     setError(null);
     setUploadProgress(null);
     setVideoUploadProgress(null);
   }, [paper]);
 
+  const setAttribute = (fieldId: string, value: AttributeValue | undefined) =>
+    setAttributes((prev) => {
+      const next = { ...prev };
+      if (value === undefined) delete next[fieldId];
+      else next[fieldId] = value;
+      return next;
+    });
+
   const handleSubmit = async () => {
     if (!title.trim()) return setError("El título es obligatorio.");
+    // Solo valores de campos que siguen existiendo, con el texto recortado.
+    const cleanAttributes: PaperAttributes = {};
+    fields.forEach((field) => {
+      const value = attributes[field.id];
+      const clean = typeof value === "string" ? value.trim() : value;
+      if (hasValue(clean)) cleanAttributes[field.id] = clean as AttributeValue;
+    });
+    const missing = fields.find((f) => f.required && !hasValue(cleanAttributes[f.id]));
+    if (missing) return setError(`«${missing.label}» es obligatorio.`);
     const willHavePdf = !!file || !!paper?.urlPdf;
     const willHaveVideo = !!videoFile || (!!paper?.urlVideo && !removeVideo);
     if (!willHavePdf && !willHaveVideo) return setError("Selecciona un archivo PDF o un video.");
@@ -184,12 +199,7 @@ function PaperFormModal({
         institution: institution.trim(),
         urlPdf,
         urlVideo,
-        categoryId,
-        theme: theme.trim() || null,
-        studyType,
-        year: year === "" ? null : year,
-        country: country.trim() || null,
-        identificationCode: identificationCode.trim() || null,
+        attributes: cleanAttributes,
       });
       if (file && previousUrl && previousUrl !== urlPdf) {
         // El paper ya quedó guardado con el archivo nuevo; el anterior es basura en Storage.
@@ -283,49 +293,22 @@ function PaperFormModal({
           )}
           {videoUploadProgress !== null && <Progress value={videoUploadProgress} animated />}
         </Stack>
-        <Select
-          label="Categoría"
-          data={categories.map((c) => ({ value: c.id, label: c.name }))}
-          value={categoryId}
-          onChange={setCategoryId}
-          clearable
-          placeholder="Sin categoría"
-        />
-        {studyTypeOptions.length > 0 && (
-          <Select
-            label="Tipo de estudio"
-            description="Opcional. La lista se edita en «Editar evento»."
-            data={studyTypeOptions}
-            value={studyType}
-            onChange={setStudyType}
-            clearable
-            placeholder="Sin tipo de estudio"
-          />
+        {fields.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            Este evento no tiene campos adicionales. Créalos en la pestaña «Campos».
+          </Text>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
+            {fields.map((field) => (
+              <AttributeInput
+                key={field.id}
+                field={field}
+                value={attributes[field.id]}
+                onChange={(value) => setAttribute(field.id, value)}
+              />
+            ))}
+          </SimpleGrid>
         )}
-        <Autocomplete
-          label="Tema"
-          description="Texto libre; aparece en el filtro de temas del sitio público."
-          data={themes}
-          value={theme}
-          onChange={setTheme}
-        />
-        <Group grow>
-          <NumberInput
-            label="Año"
-            placeholder="Ej. 2026"
-            value={year}
-            onChange={(v) => setYear(typeof v === "number" ? v : "")}
-            min={1900}
-            max={2100}
-            hideControls
-          />
-          <TextInput label="País" value={country} onChange={(e) => setCountry(e.currentTarget.value)} />
-          <TextInput
-            label="Código de identificación"
-            value={identificationCode}
-            onChange={(e) => setIdentificationCode(e.currentTarget.value)}
-          />
-        </Group>
         {error && <Alert color="red">{error}</Alert>}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose} disabled={saving}>
@@ -341,8 +324,11 @@ function PaperFormModal({
 }
 
 export default function AdminPapers() {
-  const { eventSlug, categories, papers, paperSearchIndex } = useAdminEvent();
+  const { eventSlug, fields, papers, paperSearchIndex } = useAdminEvent();
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; direction: 1 | -1 }>({ key: "title", direction: 1 });
+  // Por campo de lista: ids de opciones elegidas (NO_VALUE = papers sin valor). Vacío = sin filtro.
+  const [fieldFilters, setFieldFilters] = useState<Record<string, string[]>>({});
   const [editing, setEditing] = useState<Paper | "new" | null>(null);
   const [toDelete, setToDelete] = useState<Paper | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -355,7 +341,7 @@ export default function AdminPapers() {
   const [mergeSaving, setMergeSaving] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
 
-  const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
+  const listFields = useMemo(() => fields.filter(isListField), [fields]);
 
   const searchIndexByPaperId = useMemo(
     () => new Map(paperSearchIndex.map((i) => [i.paperId, i])),
@@ -409,15 +395,55 @@ export default function AdminPapers() {
 
   const filtered = useMemo(() => {
     const term = normalizeText(search);
-    if (!term) return papers;
-    return papers.filter(
-      (p) =>
-        normalizeText(p.title).includes(term) ||
-        normalizeText(p.institution).includes(term) ||
-        p.authors.some((a) => normalizeText(a).includes(term))
-    );
-  }, [papers, search]);
+    const matchesSearch = (p: Paper) =>
+      !term ||
+      normalizeText(p.title).includes(term) ||
+      normalizeText(p.institution).includes(term) ||
+      p.authors.some((a) => normalizeText(a).includes(term)) ||
+      fields.some((f) => normalizeText(formatAttribute(f, p.attributes[f.id])).includes(term));
+    const matchesFilters = (p: Paper) =>
+      listFields.every((f) => {
+        const selected = fieldFilters[f.id] ?? [];
+        if (selected.length === 0) return true;
+        const ids = optionIdsOf(p.attributes[f.id]);
+        return ids.length === 0 ? selected.includes(NO_VALUE) : ids.some((id) => selected.includes(id));
+      });
+
+    const result = papers.filter((p) => matchesSearch(p) && matchesFilters(p));
+    const { key, direction } = sort;
+    const field = key.startsWith("field:") ? fields.find((f) => `field:${f.id}` === key) : undefined;
+    const metric = (p: Paper) =>
+      key === "votes" ? p.voteCount : key === "views" ? p.viewCount : key === "downloads" ? p.downloadCount : 0;
+    // papers ya llega alfabético; sort() es estable, así que el título queda como desempate.
+    return result.sort((a, b) => {
+      if (field) return compareAttributes(field, a.attributes[field.id], b.attributes[field.id], direction);
+      if (key === "title") return a.title.localeCompare(b.title, "es", { sensitivity: "base" }) * direction;
+      return (metric(a) - metric(b)) * direction;
+    });
+  }, [papers, fields, listFields, search, fieldFilters, sort]);
   const { page, setPage, totalPages, pageItems } = usePagination(filtered);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((prev) => ({ key, direction: prev.key === key ? (prev.direction === 1 ? -1 : 1) : key === "title" ? 1 : -1 }));
+
+  const sortableHeader = (key: SortKey, label: string) => (
+    <Table.Th key={key}>
+      <UnstyledButton onClick={() => toggleSort(key)} style={{ fontWeight: 700 }}>
+        <Group gap={4} wrap="nowrap">
+          {label}
+          {sort.key !== key ? (
+            <IconSelector size={14} opacity={0.4} />
+          ) : sort.direction === 1 ? (
+            <IconChevronUp size={14} />
+          ) : (
+            <IconChevronDown size={14} />
+          )}
+        </Group>
+      </UnstyledButton>
+    </Table.Th>
+  );
+
+  const activeFilterCount = Object.values(fieldFilters).filter((v) => v.length > 0).length;
 
   const handleSave = async (input: PaperInput) => {
     if (editing === "new") await createPaper(eventSlug, input);
@@ -443,7 +469,7 @@ export default function AdminPapers() {
     <Stack gap="md">
       <Group justify="space-between">
         <TextInput
-          placeholder="Buscar por título, autor o institución"
+          placeholder="Buscar por título, autor, institución o campos"
           value={search}
           onChange={(e) => {
             setSearch(e.currentTarget.value);
@@ -478,25 +504,58 @@ export default function AdminPapers() {
 
       {reindexError && <Alert color="red">{reindexError}</Alert>}
 
+      {listFields.length > 0 && (
+        <Group gap="sm" align="flex-end">
+          {listFields.map((field) => (
+            <MultiSelect
+              key={field.id}
+              label={field.label}
+              placeholder={(fieldFilters[field.id] ?? []).length ? undefined : "Todas"}
+              data={[
+                ...field.options.map((o) => ({ value: o.id, label: o.name })),
+                { value: NO_VALUE, label: "(Sin valor)" },
+              ]}
+              value={fieldFilters[field.id] ?? []}
+              onChange={(value) => {
+                setFieldFilters((prev) => ({ ...prev, [field.id]: value }));
+                setPage(1);
+              }}
+              clearable
+              searchable
+              w={{ base: "100%", sm: 240 }}
+            />
+          ))}
+          {activeFilterCount > 0 && (
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setFieldFilters({});
+                setPage(1);
+              }}
+            >
+              Quitar filtros
+            </Button>
+          )}
+        </Group>
+      )}
+
       <Text size="sm" c="dimmed">
-        {filtered.length} de {papers.length} papers
+        {filtered.length} de {papers.length} papers · clic en un encabezado para ordenar
       </Text>
 
       {papers.length === 0 ? (
         <Text c="dimmed">Este evento aún no tiene papers. Créalos uno a uno o con la carga masiva.</Text>
       ) : (
-        <Table.ScrollContainer minWidth={800}>
+        <Table.ScrollContainer minWidth={800 + fields.length * 140}>
           <Table withTableBorder highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Título</Table.Th>
+                {sortableHeader("title", "Título")}
                 <Table.Th>Autores</Table.Th>
-                <Table.Th>Categoría</Table.Th>
-                <Table.Th>Tipo de estudio</Table.Th>
-                <Table.Th>Tema</Table.Th>
-                <Table.Th>Votos</Table.Th>
-                <Table.Th>Vistas</Table.Th>
-                <Table.Th>Descargas</Table.Th>
+                {fields.map((field) => sortableHeader(`field:${field.id}`, field.label))}
+                {sortableHeader("votes", "Votos")}
+                {sortableHeader("views", "Vistas")}
+                {sortableHeader("downloads", "Descargas")}
                 <Table.Th>Búsqueda</Table.Th>
                 <Table.Th />
               </Table.Tr>
@@ -506,9 +565,9 @@ export default function AdminPapers() {
                 <Table.Tr key={paper.id}>
                   <Table.Td>{paper.title}</Table.Td>
                   <Table.Td>{paper.authors.join("; ")}</Table.Td>
-                  <Table.Td>{categoryName(paper.categoryId)}</Table.Td>
-                  <Table.Td>{paper.studyType ?? "—"}</Table.Td>
-                  <Table.Td>{paper.theme ?? "—"}</Table.Td>
+                  {fields.map((field) => (
+                    <Table.Td key={field.id}>{formatAttribute(field, paper.attributes[field.id]) || "—"}</Table.Td>
+                  ))}
                   <Table.Td>{paper.voteCount}</Table.Td>
                   <Table.Td>{paper.viewCount}</Table.Td>
                   <Table.Td>{paper.downloadCount}</Table.Td>

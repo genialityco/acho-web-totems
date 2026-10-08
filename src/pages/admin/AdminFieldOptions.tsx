@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import {
   ActionIcon,
   Alert,
@@ -17,49 +18,43 @@ import {
 import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { useAdminEvent } from "../../context/useAdminEvent";
-import {
-  Category,
-  CategoryInput,
-  createCategory,
-  deleteCategory,
-  updateCategory,
-} from "../../services/firestore/categoryService";
 import { errorMessage } from "../../services/firestore/batch";
+import {
+  deleteFieldOption,
+  FieldOption,
+  isListField,
+  newOptionId,
+  OPTION_COLORS,
+  optionIdsOf,
+  saveFieldOptions,
+} from "../../services/firestore/fieldService";
+import { normalizeText } from "../../utils/text";
 
-const COLORS = [
-  { value: "green", label: "Verde" },
-  { value: "blue", label: "Azul" },
-  { value: "red", label: "Rojo" },
-  { value: "purple", label: "Morado" },
-  { value: "orange", label: "Naranja" },
-  { value: "teal", label: "Turquesa" },
-  { value: "pink", label: "Rosado" },
-  { value: "indigo", label: "Índigo" },
-];
-
-function CategoryFormModal({
-  category,
+function OptionFormModal({
+  option,
   nextOrder,
+  withColor,
   onClose,
   onSave,
 }: {
-  category: Category | null;
+  option: FieldOption | null;
   nextOrder: number;
+  withColor: boolean;
   onClose: () => void;
-  onSave: (input: CategoryInput) => Promise<void>;
+  onSave: (input: Omit<FieldOption, "id">) => Promise<void>;
 }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState<string>("blue");
+  const [color, setColor] = useState<string | null>(null);
   const [order, setOrder] = useState<number>(nextOrder);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setName(category?.name ?? "");
-    setColor(category?.color ?? "blue");
-    setOrder(category?.order ?? nextOrder);
+    setName(option?.name ?? "");
+    setColor(option?.color ?? (withColor ? "blue" : null));
+    setOrder(option?.order ?? nextOrder);
     setError(null);
-  }, [category, nextOrder]);
+  }, [option, nextOrder, withColor]);
 
   const handleSubmit = async () => {
     if (!name.trim()) return setError("El nombre es obligatorio.");
@@ -74,18 +69,21 @@ function CategoryFormModal({
   };
 
   return (
-    <Modal opened onClose={onClose} title={category ? "Editar categoría" : "Nueva categoría"} centered>
+    <Modal opened onClose={onClose} title={option ? "Editar opción" : "Nueva opción"} centered>
       <Stack>
-        <TextInput
-          label="Nombre"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          data-autofocus
+        <TextInput label="Nombre" value={name} onChange={(e) => setName(e.currentTarget.value)} data-autofocus />
+        <Select
+          label="Color"
+          description={withColor ? undefined : "Solo se usa si este campo es un filtro de tarjetas de colores."}
+          data={OPTION_COLORS}
+          value={color}
+          onChange={setColor}
+          clearable
+          placeholder="Sin color"
         />
-        <Select label="Color" data={COLORS} value={color} onChange={(v) => v && setColor(v)} allowDeselect={false} />
         <NumberInput
           label="Orden"
-          description="Las categorías se muestran de menor a mayor."
+          description="Las opciones se muestran de menor a mayor."
           value={order}
           onChange={(v) => setOrder(typeof v === "number" ? v : Number(v) || 0)}
         />
@@ -103,19 +101,32 @@ function CategoryFormModal({
   );
 }
 
-export default function AdminCategories() {
-  const { eventSlug, categories, papers } = useAdminEvent();
-  const [editing, setEditing] = useState<Category | "new" | null>(null);
-  const [toDelete, setToDelete] = useState<Category | null>(null);
+export default function AdminFieldOptions() {
+  const { fieldId = "" } = useParams<{ fieldId: string }>();
+  const { eventSlug, fields, papers } = useAdminEvent();
+  const [editing, setEditing] = useState<FieldOption | "new" | null>(null);
+  const [toDelete, setToDelete] = useState<FieldOption | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const papersIn = (categoryId: string) => papers.filter((p) => p.categoryId === categoryId);
-  const nextOrder = categories.reduce((max, c) => Math.max(max, c.order), 0) + 1;
+  const field = fields.find((f) => f.id === fieldId);
+  if (!field || !isListField(field)) return <Navigate to={`/admin/${eventSlug}/fields`} replace />;
 
-  const handleSave = async (input: CategoryInput) => {
-    if (editing === "new") await createCategory(eventSlug, input);
-    else if (editing) await updateCategory(eventSlug, editing.id, input);
+  const papersWith = (optionId: string) =>
+    papers.filter((p) => optionIdsOf(p.attributes[field.id]).includes(optionId));
+  const withoutValue = papers.filter((p) => optionIdsOf(p.attributes[field.id]).length === 0).length;
+  const nextOrder = field.options.reduce((max, o) => Math.max(max, o.order), 0) + 1;
+
+  const handleSave = async (input: Omit<FieldOption, "id">) => {
+    const duplicate = field.options.find(
+      (o) => normalizeText(o.name) === normalizeText(input.name) && (editing === "new" || o.id !== editing?.id)
+    );
+    if (duplicate) throw new Error(`Ya existe una opción llamada "${duplicate.name}".`);
+    const options =
+      editing === "new"
+        ? [...field.options, { id: newOptionId(), ...input }]
+        : field.options.map((o) => (editing && o.id === editing.id ? { ...o, ...input } : o));
+    await saveFieldOptions(eventSlug, field.id, options);
     setEditing(null);
   };
 
@@ -124,10 +135,11 @@ export default function AdminCategories() {
     setDeleting(true);
     setDeleteError(null);
     try {
-      await deleteCategory(
+      await deleteFieldOption(
         eventSlug,
+        field,
         toDelete.id,
-        papersIn(toDelete.id).map((p) => p.id)
+        papersWith(toDelete.id).map((p) => p.id)
       );
       setToDelete(null);
     } catch (e) {
@@ -137,21 +149,21 @@ export default function AdminCategories() {
     }
   };
 
-  const affected = toDelete ? papersIn(toDelete.id).length : 0;
+  const affected = toDelete ? papersWith(toDelete.id).length : 0;
 
   return (
     <Stack gap="md">
       <Group justify="space-between">
         <Text c="dimmed" size="sm">
-          Son las tarjetas de colores que ven los asistentes para filtrar los papers.
+          Opciones de «{field.label}». {withoutValue} de {papers.length} papers no tienen ninguna.
         </Text>
         <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing("new")}>
-          Nueva categoría
+          Nueva opción
         </Button>
       </Group>
 
-      {categories.length === 0 ? (
-        <Text c="dimmed">Este evento aún no tiene categorías.</Text>
+      {field.options.length === 0 ? (
+        <Text c="dimmed">Este campo aún no tiene opciones.</Text>
       ) : (
         <Table.ScrollContainer minWidth={500}>
           <Table withTableBorder highlightOnHover>
@@ -165,20 +177,24 @@ export default function AdminCategories() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {categories.map((category) => (
-                <Table.Tr key={category.id}>
-                  <Table.Td>{category.order}</Table.Td>
-                  <Table.Td>{category.name}</Table.Td>
+              {field.options.map((option) => (
+                <Table.Tr key={option.id}>
+                  <Table.Td>{option.order}</Table.Td>
+                  <Table.Td>{option.name}</Table.Td>
                   <Table.Td>
-                    <Badge color={category.color}>
-                      {COLORS.find((c) => c.value === category.color)?.label ?? category.color}
-                    </Badge>
+                    {option.color ? (
+                      <Badge color={option.color}>
+                        {OPTION_COLORS.find((c) => c.value === option.color)?.label ?? option.color}
+                      </Badge>
+                    ) : (
+                      "—"
+                    )}
                   </Table.Td>
-                  <Table.Td>{papersIn(category.id).length}</Table.Td>
+                  <Table.Td>{papersWith(option.id).length}</Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end">
                       <Tooltip label="Editar">
-                        <ActionIcon variant="subtle" aria-label="Editar" onClick={() => setEditing(category)}>
+                        <ActionIcon variant="subtle" aria-label="Editar" onClick={() => setEditing(option)}>
                           <IconPencil size={16} />
                         </ActionIcon>
                       </Tooltip>
@@ -189,7 +205,7 @@ export default function AdminCategories() {
                           aria-label="Eliminar"
                           onClick={() => {
                             setDeleteError(null);
-                            setToDelete(category);
+                            setToDelete(option);
                           }}
                         >
                           <IconTrash size={16} />
@@ -205,9 +221,10 @@ export default function AdminCategories() {
       )}
 
       {editing && (
-        <CategoryFormModal
-          category={editing === "new" ? null : editing}
+        <OptionFormModal
+          option={editing === "new" ? null : editing}
           nextOrder={nextOrder}
+          withColor={field.filter === "cards"}
           onClose={() => setEditing(null)}
           onSave={handleSave}
         />
@@ -215,10 +232,10 @@ export default function AdminCategories() {
 
       <ConfirmModal
         opened={toDelete !== null}
-        title="Eliminar categoría"
+        title="Eliminar opción"
         message={
           affected > 0
-            ? `Se eliminará "${toDelete?.name}". ${affected} paper(s) quedarán sin categoría.`
+            ? `Se eliminará "${toDelete?.name}". ${affected} paper(s) la perderán.`
             : `Se eliminará "${toDelete?.name}".`
         }
         confirmLabel="Eliminar"

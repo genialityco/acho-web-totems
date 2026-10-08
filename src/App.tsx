@@ -12,7 +12,8 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import ProtectedAdminRoute from "./pages/admin/ProtectedAdminRoute";
 import AdminEventsPage from "./pages/admin/AdminEventsPage";
 import AdminEventLayout from "./pages/admin/AdminEventLayout";
-import AdminCategories from "./pages/admin/AdminCategories";
+import AdminFields from "./pages/admin/AdminFields";
+import AdminFieldOptions from "./pages/admin/AdminFieldOptions";
 import AdminPapers from "./pages/admin/AdminPapers";
 import AdminVoters from "./pages/admin/AdminVoters";
 import AdminResults from "./pages/admin/AdminResults";
@@ -31,8 +32,9 @@ export default function App() {
             <Route element={<ProtectedAdminRoute />}>
               <Route index element={<AdminEventsPage />} />
               <Route path=":eventSlug" element={<AdminEventLayout />}>
-                <Route index element={<Navigate to="categories" replace />} />
-                <Route path="categories" element={<AdminCategories />} />
+                <Route index element={<Navigate to="papers" replace />} />
+                <Route path="fields" element={<AdminFields />} />
+                <Route path="fields/:fieldId" element={<AdminFieldOptions />} />
                 <Route path="papers" element={<AdminPapers />} />
                 <Route path="papers/bulk-upload" element={<PapersBulkUpload />} />
                 <Route path="voters" element={<AdminVoters />} />

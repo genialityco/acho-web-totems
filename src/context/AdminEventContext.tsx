@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { subscribeEvent, EventInfo } from "../services/firestore/eventService";
-import { subscribeCategories, Category } from "../services/firestore/categoryService";
+import { subscribeFields, PaperField } from "../services/firestore/fieldService";
 import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeVoters, Voter } from "../services/firestore/voterService";
 import { subscribeVotes, VoteRecord } from "../services/firestore/voteService";
@@ -13,7 +13,7 @@ export const AdminEventProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ eventSlug, children }) => {
   const [event, setEvent] = useState<EventInfo | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [fields, setFields] = useState<PaperField[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [voters, setVoters] = useState<Voter[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
@@ -21,7 +21,7 @@ export const AdminEventProvider: React.FC<{
   const [paperSearchIndex, setPaperSearchIndex] = useState<PaperSearchIndex[]>([]);
   const [loaded, setLoaded] = useState({
     event: false,
-    categories: false,
+    fields: false,
     papers: false,
     voters: false,
     votes: false,
@@ -39,7 +39,7 @@ export const AdminEventProvider: React.FC<{
     };
     const unsubscribers = [
       subscribeEvent(eventSlug, (info) => { setEvent(info); markLoaded("event"); }, fail),
-      subscribeCategories(eventSlug, (list) => { setCategories(list); markLoaded("categories"); }, fail),
+      subscribeFields(eventSlug, (list) => { setFields(list); markLoaded("fields"); }, fail),
       subscribePapers(eventSlug, (list) => { setPapers(list); markLoaded("papers"); }, fail),
       subscribeVoters(eventSlug, (list) => { setVoters(list); markLoaded("voters"); }, fail),
       subscribeVotes(eventSlug, (list) => { setVotes(list); markLoaded("votes"); }, fail),
@@ -59,7 +59,7 @@ export const AdminEventProvider: React.FC<{
 
   return (
     <AdminEventContext.Provider
-      value={{ eventSlug, status, event, categories, papers, voters, votes, screensaverItems, paperSearchIndex }}
+      value={{ eventSlug, status, event, fields, papers, voters, votes, screensaverItems, paperSearchIndex }}
     >
       {children}
     </AdminEventContext.Provider>

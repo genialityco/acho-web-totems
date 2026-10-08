@@ -1,15 +1,21 @@
 import { createContext, useContext } from "react";
 import type { EventInfo } from "../services/firestore/eventService";
-import type { Category } from "../services/firestore/categoryService";
+import type { FieldOption, PaperField } from "../services/firestore/fieldService";
 import type { Paper } from "../services/firestore/paperService";
 import type { ScreensaverItem } from "../services/firestore/screensaverService";
 import type { SearchSnippet } from "../utils/text";
 
 export type EventStatus = "loading" | "ready" | "not-found" | "error";
 
-export type CategoryWithCount = Category & { count: number };
-
-export type StudyTypeWithCount = { name: string; count: number };
+// Un filtro público: un campo de lista con filter != "none", con el conteo de cada opción (ignora
+// su propio filtro y respeta los demás) y lo que el visitante eligió (vacío = "Ver todos").
+export type PublicFilter = {
+  field: PaperField;
+  options: (FieldOption & { count: number })[];
+  // Pósters que pasan los demás filtros, sin importar este (el número de "Ver todos").
+  allCount: number;
+  selected: string[];
+};
 
 export type SearchMode = "exact" | "semantic" | "both";
 
@@ -40,26 +46,15 @@ export type PostersContextType = {
   page: number;
   setPage: (page: number) => void;
   totalPages: number;
-  // Filtros de selección múltiple: una lista vacía = "Ver todos" (no filtra).
-  selectedCategories: string[];
-  setSelectedCategories: (categoryIds: string[]) => void;
-  selectedStudyTypes: string[];
-  setSelectedStudyTypes: (studyTypes: string[]) => void;
-  // La fila de tipos de estudio aparece después de que el visitante elige algo en la de categorías
-  // (una o varias, o "Ver todos"); si el evento no tiene categorías se muestra desde el inicio.
-  // Mientras la fila está oculta, selectedStudyTypes no filtra.
-  setStudyTypesRevealed: (revealed: boolean) => void;
-  studyTypesVisible: boolean;
-  selectedTheme: string | null;
-  setSelectedTheme: (theme: string | null) => void;
-  categories: CategoryWithCount[];
-  // Pósters que pasan los demás filtros sin importar la categoría (el número de "Ver todos").
-  allCategoriesCount: number;
-  // Tipos de estudio del evento con su conteo (ignora el filtro de tipo, respeta el de categoría).
-  studyTypes: StudyTypeWithCount[];
-  allStudyTypesCount: number;
-  themes: string[];
-  getCategoryName: (categoryId: string | null) => string;
+  // Campos del evento (para mostrar los valores en las tarjetas y en el detalle).
+  fields: PaperField[];
+  // Solo los filtros visibles, en el orden de los campos. Uno con revealAfterPrevious aparece
+  // cuando el visitante elige algo en el filtro anterior; mientras está oculto no filtra.
+  filters: PublicFilter[];
+  // Prende/apaga una opción del filtro; null = "Ver todos" (vacía la selección de ese filtro).
+  toggleFilterOption: (fieldId: string, optionId: string | null) => void;
+  // Color del póster: el de su opción en el primer filtro de tarjetas de colores (null si no tiene).
+  getPaperColor: (paper: Paper) => string | null;
 };
 
 export const PostersContext = createContext<PostersContextType | undefined>(undefined);

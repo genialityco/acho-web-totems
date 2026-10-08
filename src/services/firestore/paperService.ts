@@ -10,6 +10,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../firebaseConfig";
 import { commitRowsInChunks } from "./batch";
+import { PaperAttributes, toAttributes } from "./fieldService";
 
 export interface Paper {
   id: string;
@@ -21,13 +22,8 @@ export interface Paper {
   // en el indexado de búsqueda semántica (solo se procesa texto de PDF, ver indexPaperSearchTrigger),
   // pero el paper sigue apareciendo en búsqueda exacta por título/autores como cualquier otro.
   urlVideo: string | null;
-  categoryId: string | null;
-  theme: string | null;
-  // Tipo de estudio (opcional): uno de los EventInfo.studyTypes del evento, guardado por nombre.
-  studyType: string | null;
-  year: number | null;
-  country: string | null;
-  identificationCode: string | null;
+  // Valores de los campos que el evento define (events/{slug}/fields), por id de campo. Ver fieldService.
+  attributes: PaperAttributes;
   voteCount: number;
   // Métricas propias (independientes de Google Analytics), incrementadas por la Cloud Function
   // incrementPaperMetric desde el sitio público: cuántas veces se abrió el detalle del póster y
@@ -67,12 +63,7 @@ export const subscribePapers = (
           institution: asString(data.institution),
           urlPdf: asString(data.urlPdf),
           urlVideo: asString(data.urlVideo) || null,
-          categoryId: asString(data.categoryId) || null,
-          theme: asString(data.theme) || null,
-          studyType: asString(data.studyType) || null,
-          year: typeof data.year === "number" ? data.year : null,
-          country: asString(data.country) || null,
-          identificationCode: asString(data.identificationCode) || null,
+          attributes: toAttributes(data.attributes),
           voteCount: typeof data.voteCount === "number" ? data.voteCount : 0,
           viewCount: typeof data.viewCount === "number" ? data.viewCount : 0,
           downloadCount: typeof data.downloadCount === "number" ? data.downloadCount : 0,

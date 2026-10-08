@@ -45,7 +45,8 @@ export type ExplanationLanguage = "es" | "en";
 interface MatchExplanationInput {
   query: string;
   title: string;
-  theme: string;
+  // Campos del evento con valor, ya legibles (ej. "Especialización: Oncología").
+  attributes: string[];
   authors: string[];
   // Texto extraído del PDF (ya acotado por quien llama); vacío si el paper no tiene índice listo.
   text: string;
@@ -70,7 +71,7 @@ export async function explainMatch(input: MatchExplanationInput): Promise<string
     `<query>${input.query}</query>`,
     `<poster>`,
     `Title: ${input.title}`,
-    input.theme ? `Theme: ${input.theme}` : "",
+    ...input.attributes,
     input.authors.length ? `Authors: ${input.authors.join(", ")}` : "",
     input.text ? `Document text (truncated):\n${input.text}` : "",
     `</poster>`,

@@ -17,7 +17,6 @@ import {
   Stack,
   Switch,
   Tabs,
-  TagsInput,
   Text,
   TextInput,
   Title,
@@ -27,6 +26,7 @@ import { IconArrowLeft, IconExternalLink, IconPencil, IconPhoto, IconTrash } fro
 import { AdminEventProvider } from "../../context/AdminEventContext";
 import { useAdminEvent } from "../../context/useAdminEvent";
 import { EventInfo, updateEvent, VoteMode } from "../../services/firestore/eventService";
+import { isListField } from "../../services/firestore/fieldService";
 import { errorMessage } from "../../services/firestore/batch";
 import { deleteEventImage, MAX_EVENT_IMAGE_BYTES, uploadEventImage } from "../../services/storageService";
 
@@ -92,8 +92,6 @@ function EditEventModal({
   onClose: () => void;
 }) {
   const [name, setName] = useState(event.name);
-  const [categoriesLabel, setCategoriesLabel] = useState(event.categoriesLabel ?? "");
-  const [studyTypes, setStudyTypes] = useState<string[]>(event.studyTypes);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [removeBanner, setRemoveBanner] = useState(false);
   const [bannerProgress, setBannerProgress] = useState<number | null>(null);
@@ -134,13 +132,7 @@ function EditEventModal({
         backgroundUrl = null;
       }
 
-      await updateEvent(event.slug, {
-        name: name.trim(),
-        bannerUrl,
-        backgroundUrl,
-        categoriesLabel: categoriesLabel.trim() || null,
-        studyTypes: Array.from(new Set(studyTypes.map((s) => s.trim()).filter(Boolean))),
-      });
+      await updateEvent(event.slug, { name: name.trim(), bannerUrl, backgroundUrl });
 
       if (previousBannerUrl && previousBannerUrl !== bannerUrl) {
         // El evento ya quedó guardado con la imagen nueva (o sin imagen); la anterior es basura en Storage.
@@ -163,21 +155,6 @@ function EditEventModal({
     <Modal opened onClose={onClose} title="Editar evento" centered closeOnClickOutside={!saving} withCloseButton={!saving}>
       <Stack>
         <TextInput label="Nombre" value={name} onChange={(e) => setName(e.currentTarget.value)} data-autofocus />
-        <TextInput
-          label="Título de la sección de categorías"
-          description="Cómo se llama en el sitio público el filtro de categorías de este evento (ej. Especialización). Vacío = Categorías."
-          placeholder="Categorías"
-          value={categoriesLabel}
-          onChange={(e) => setCategoriesLabel(e.currentTarget.value)}
-        />
-        <TagsInput
-          label="Tipos de estudio"
-          description="Segundo filtro del sitio público, en este orden. Escribe uno y presiona Enter. Si renombras o quitas uno, los papers que lo tenían quedan sin tipo de estudio."
-          placeholder="Ej. Reporte de casos"
-          value={studyTypes}
-          onChange={setStudyTypes}
-          clearable
-        />
         <EventImageField
           label="Imagen del banner"
           description="Cabecera del sitio público: ocupa el 100% del ancho y su alto se ajusta entre 80 y 200px según la pantalla. Tamaño ideal: 2000×200 px (horizontal, relación ~10:1) para que no se recorte en alto en desktop. Máx. 5 MB. Vacío = logo de ACHO por defecto."
@@ -220,16 +197,19 @@ function EditEventModal({
   );
 }
 
-const TABS = [
-  { value: "categories", label: "Categorías" },
+const TABS_BEFORE_FIELDS = [
   { value: "papers", label: "Papers" },
+  { value: "fields", label: "Campos" },
+];
+
+const TABS_AFTER_FIELDS = [
   { value: "voters", label: "Votantes" },
   { value: "results", label: "Resultados" },
   { value: "screensaver", label: "Protector de pantalla" },
 ];
 
 function EventFrame() {
-  const { eventSlug, status, event } = useAdminEvent();
+  const { eventSlug, status, event, fields } = useAdminEvent();
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -264,8 +244,15 @@ function EventFrame() {
     );
   }
 
-  const segment = location.pathname.split("/")[3] ?? "";
-  const activeTab = TABS.some((t) => t.value === segment) ? segment : "categories";
+  // Cada campo de lista tiene su propia pestaña (fields/:fieldId) para administrar sus opciones.
+  const tabs = [
+    ...TABS_BEFORE_FIELDS,
+    ...fields.filter(isListField).map((f) => ({ value: `fields/${f.id}`, label: f.label })),
+    ...TABS_AFTER_FIELDS,
+  ];
+  const [, , , segment = "", subSegment] = location.pathname.split("/");
+  const tabValue = segment === "fields" && subSegment ? `fields/${subSegment}` : segment;
+  const activeTab = tabs.some((t) => t.value === tabValue) ? tabValue : "papers";
 
   const toggleVoting = async (open: boolean) => {
     setError(null);
@@ -371,7 +358,7 @@ function EventFrame() {
 
       <Tabs value={activeTab} onChange={(value) => value && navigate(`/admin/${eventSlug}/${value}`)}>
         <Tabs.List>
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <Tabs.Tab key={tab.value} value={tab.value}>
               {tab.label}
             </Tabs.Tab>

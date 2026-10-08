@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { castVote, VoteError } from "../services/firestore/voteService";
 import { trackPosterDownload, trackPosterView } from "../services/firestore/paperMetricsService";
 import { usePosters } from "../context/usePosters";
+import { formatAttribute, optionIdsOf } from "../services/firestore/fieldService";
 import { useElementFullscreen } from "../hooks/useElementFullscreen";
 import { slugify } from "../utils/text";
 import { getAnonymousVoterId } from "../utils/anonymousVoter";
@@ -28,8 +29,7 @@ const PosterDetail = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { eventSlug, event, posters, currentPagePosters, loading, getCategoryName } =
-    usePosters();
+  const { eventSlug, event, posters, currentPagePosters, loading, fields } = usePosters();
   const poster = posters.find((p) => p.id === id) ?? null;
   const [isVoting, setIsVoting] = useState(false);
   const [idNumber, setIdNumber] = useState<string>("");
@@ -156,7 +156,8 @@ const PosterDetail = () => {
         event_slug: eventSlug,
         paper_id: poster.id,
         paper_title: poster.title,
-        category_id: poster.categoryId ?? "",
+        // Opción(es) del primer filtro de tarjetas (lo que antes era la categoría), para no romper los reportes.
+        category_id: optionIdsOf(poster.attributes[fields.find((f) => f.filter === "cards")?.id ?? ""]).join(","),
         vote_mode: event?.voteMode ?? "registered",
       });
       setIsVoteModalOpen(false);
@@ -217,7 +218,11 @@ const PosterDetail = () => {
   return (
     <Container fluid>
       <Text c="dimmed" style={{ marginTop: -15 }}>
-        {[getCategoryName(poster.categoryId), poster.studyType, poster.theme].filter(Boolean).join(" / ")}
+        {fields
+          .filter((f) => f.showOnCard)
+          .map((f) => formatAttribute(f, poster.attributes[f.id]))
+          .filter(Boolean)
+          .join(" / ")}
       </Text>
       <Group justify="space-around" mb="md">
         <Button

@@ -12,7 +12,15 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
 
+      // Legado: las categorías ahora son un campo de lista (ver fields). Se conserva la lectura
+      // mientras quede desplegado el frontend anterior; borrar junto con la colección al limpiar.
       match /categories/{categoryId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+
+      // Campos (atributos) de los papers del evento, con sus opciones de lista.
+      match /fields/{fieldId} {
         allow read: if true;
         allow write: if isAdmin();
       }

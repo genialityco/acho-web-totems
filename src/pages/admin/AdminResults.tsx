@@ -17,6 +17,7 @@ import MetricsCharts from "../../components/admin/MetricsCharts";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { usePagination } from "../../components/admin/usePagination";
 import { useAdminEvent } from "../../context/useAdminEvent";
+import { formatAttribute, isListField } from "../../services/firestore/fieldService";
 import { errorMessage } from "../../services/firestore/batch";
 import { resetVotes } from "../../services/firestore/voteService";
 import { resetPaperMetrics } from "../../services/firestore/paperMetricsService";
@@ -35,7 +36,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default function AdminResults() {
-  const { eventSlug, categories, papers, voters, votes } = useAdminEvent();
+  const { eventSlug, fields, papers, voters, votes } = useAdminEvent();
   const [resetOpen, setResetOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -71,7 +72,8 @@ export default function AdminResults() {
   }, [votes, voters, papers]);
   const auditPager = usePagination(auditRows);
 
-  const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
+  // Campos de lista que se ven en la tarjeta del póster (ej. la especialización), como columnas del ranking.
+  const rankingFields = fields.filter((f) => isListField(f) && f.showOnCard);
   const activeVoters = voters.filter((v) => v.active).length;
   const participation = activeVoters > 0 ? Math.round((votes.length / activeVoters) * 100) : 0;
   const totalViews = papers.reduce((sum, p) => sum + p.viewCount, 0);
@@ -163,7 +165,9 @@ export default function AdminResults() {
                   <Table.Tr>
                     <Table.Th>#</Table.Th>
                     <Table.Th>Título</Table.Th>
-                    <Table.Th>Categoría</Table.Th>
+                    {rankingFields.map((field) => (
+                      <Table.Th key={field.id}>{field.label}</Table.Th>
+                    ))}
                     <Table.Th>Votos</Table.Th>
                     <Table.Th>Vistas</Table.Th>
                     <Table.Th>Descargas</Table.Th>
@@ -174,7 +178,9 @@ export default function AdminResults() {
                     <Table.Tr key={paper.id}>
                       <Table.Td>{(rankingPager.page - 1) * 25 + i + 1}</Table.Td>
                       <Table.Td>{paper.title}</Table.Td>
-                      <Table.Td>{categoryName(paper.categoryId)}</Table.Td>
+                      {rankingFields.map((field) => (
+                        <Table.Td key={field.id}>{formatAttribute(field, paper.attributes[field.id]) || "—"}</Table.Td>
+                      ))}
                       <Table.Td>
                         <b>{paper.voteCount}</b>
                       </Table.Td>
