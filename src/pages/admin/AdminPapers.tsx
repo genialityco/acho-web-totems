@@ -58,8 +58,8 @@ import {
   optionIdsOf,
   PaperAttributes,
 } from "../../services/firestore/fieldService";
-import { PaperSearchIndex, PaperSearchIndexStatus } from "../../services/firestore/paperSearchIndexService";
-import { reindexPaperSearch } from "../../services/firestore/searchQueryService";
+import { hasEmbedding, PaperSearchIndex, PaperSearchIndexStatus } from "../../services/firestore/paperSearchIndexService";
+import { reindexAllPaperSearch, reindexPaperSearch } from "../../services/firestore/searchQueryService";
 import {
   deletePaperPdf,
   deletePaperVideo,
@@ -74,9 +74,17 @@ const SEARCH_INDEX_BADGE: Record<PaperSearchIndexStatus, { label: string; color:
   pending: { label: "Pendiente", color: "gray" },
   processing: { label: "Procesando", color: "blue" },
   ready: { label: "Lista", color: "green" },
+  partial: { label: "Sin texto del PDF", color: "orange" },
   error: { label: "Error", color: "red" },
   unsupported: { label: "No compatible", color: "yellow" },
 };
+
+// Resultados de reindexPaperSearch, en el orden y con el texto con que se muestran.
+const REINDEX_OUTCOME_LABELS: Array<[string, string]> = [
+  ["ready", "listos"],
+  ["partial", "solo con título y campos (PDF sin texto)"],
+  ["error", "con error"],
+];
 
 function SearchIndexBadge({
   index,
@@ -89,15 +97,21 @@ function SearchIndexBadge({
 }) {
   const status = index?.status ?? "pending";
   const { label, color } = SEARCH_INDEX_BADGE[status];
+  // Índice que funciona pero cuyo último re-indexado falló: se sigue usando el anterior.
+  const keptPrevious = (status === "ready" || status === "partial") && !!index?.lastError;
   const badge = (
-    <Badge color={color} variant="light">
+    <Badge color={color} variant={keptPrevious ? "outline" : "light"}>
       {label}
+      {keptPrevious ? " *" : ""}
     </Badge>
   );
+  const tooltip = keptPrevious
+    ? `El último reindexado falló (${index?.lastError}); se sigue usando el índice anterior. Se reintenta solo cada noche.`
+    : index?.error;
   return (
     <Group gap={4} wrap="nowrap">
-      {index?.error ? <Tooltip label={index.error}>{badge}</Tooltip> : badge}
-      {(status === "error" || status === "unsupported") && (
+      {tooltip ? <Tooltip label={tooltip} multiline maw={320}>{badge}</Tooltip> : badge}
+      {(status === "error" || status === "unsupported" || status === "partial" || keptPrevious) && (
         <Tooltip label="Reintentar indexado">
           <ActionIcon variant="subtle" size="sm" loading={retrying} onClick={onRetry} aria-label="Reintentar indexado">
             <IconRefresh size={14} />
@@ -336,6 +350,8 @@ export default function AdminPapers() {
   const [retryingPaperId, setRetryingPaperId] = useState<string | null>(null);
   const [reindexingAll, setReindexingAll] = useState(false);
   const [reindexError, setReindexError] = useState<string | null>(null);
+  const [reindexResult, setReindexResult] = useState<string | null>(null);
+  const [reindexProgress, setReindexProgress] = useState<string | null>(null);
   const [merging, setMerging] = useState<Paper | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
   const [mergeSaving, setMergeSaving] = useState(false);
@@ -348,9 +364,24 @@ export default function AdminPapers() {
     [paperSearchIndex]
   );
 
+  // Cuántos papers participan en la búsqueda conceptual (tienen embedding) y cuántos de ellos solo con
+  // título y campos, porque su PDF no tiene texto extraíble.
+  const searchCoverage = useMemo(() => {
+    let withEmbedding = 0;
+    let partial = 0;
+    papers.forEach((paper) => {
+      const index = searchIndexByPaperId.get(paper.id);
+      if (!hasEmbedding(index)) return;
+      withEmbedding += 1;
+      if (index.status === "partial") partial += 1;
+    });
+    return { missing: papers.length - withEmbedding, partial };
+  }, [papers, searchIndexByPaperId]);
+
   const handleRetryIndex = async (paperId: string) => {
     setRetryingPaperId(paperId);
     setReindexError(null);
+    setReindexResult(null);
     try {
       await reindexPaperSearch(eventSlug, paperId);
     } catch (e) {
@@ -362,13 +393,22 @@ export default function AdminPapers() {
 
   const handleReindexAll = async () => {
     setReindexingAll(true);
+    setReindexProgress(null);
     setReindexError(null);
+    setReindexResult(null);
     try {
-      await reindexPaperSearch(eventSlug);
+      const { count, summary } = await reindexAllPaperSearch(eventSlug, (done, total) =>
+        setReindexProgress(`${done} de ${total}`)
+      );
+      const parts = REINDEX_OUTCOME_LABELS.filter(([key]) => summary[key]).map(
+        ([key, label]) => `${summary[key]} ${label}`
+      );
+      setReindexResult(`Reindexado: ${count} papers${parts.length ? ` (${parts.join(", ")})` : ""}.`);
     } catch (e) {
       setReindexError(errorMessage(e));
     } finally {
       setReindexingAll(false);
+      setReindexProgress(null);
     }
   };
 
@@ -486,14 +526,20 @@ export default function AdminPapers() {
           >
             Carga masiva
           </Button>
-          <Tooltip label="Vuelve a extraer el texto y el índice de búsqueda de todos los papers del evento">
+          <Tooltip
+            label={
+              reindexingAll
+                ? "Va al ritmo que permite la cuota de Gemini (~10 papers por minuto en el plan gratuito); no cierres esta página"
+                : "Vuelve a extraer el texto y el índice de búsqueda de todos los papers del evento"
+            }
+          >
             <Button
               variant="light"
               leftSection={<IconRefresh size={16} />}
-              loading={reindexingAll}
+              disabled={reindexingAll}
               onClick={handleReindexAll}
             >
-              Reindexar todo
+              {reindexingAll ? `Reindexando…${reindexProgress ? ` ${reindexProgress}` : ""}` : "Reindexar todo"}
             </Button>
           </Tooltip>
           <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing("new")}>
@@ -503,6 +549,19 @@ export default function AdminPapers() {
       </Group>
 
       {reindexError && <Alert color="red">{reindexError}</Alert>}
+      {reindexResult && (
+        <Alert color="green" withCloseButton onClose={() => setReindexResult(null)}>
+          {reindexResult}
+        </Alert>
+      )}
+      {(searchCoverage.missing > 0 || searchCoverage.partial > 0) && (
+        <Alert color="yellow" variant="light">
+          {searchCoverage.missing > 0 &&
+            `${searchCoverage.missing} de ${papers.length} papers no participan en la búsqueda conceptual (sin índice o con error; se reintentan solos cada noche). `}
+          {searchCoverage.partial > 0 &&
+            `${searchCoverage.partial} se indexaron solo con su título y campos porque su PDF no tiene texto extraíble.`}
+        </Alert>
+      )}
 
       {listFields.length > 0 && (
         <Group gap="sm" align="flex-end">

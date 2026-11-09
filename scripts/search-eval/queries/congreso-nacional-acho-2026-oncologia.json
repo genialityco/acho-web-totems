@@ -1,0 +1,515 @@
+{
+  "event": "congreso-nacional-acho-2026-oncologia",
+  "validated": false,
+  "note": "Borrador generado por reglas de palabras clave sobre los títulos. Falta que alguien del comité revise cada consulta: quitar pósters que no son relevantes y agregar los que sí lo son aunque el título no lo diga (usar --candidates). Al terminar, cambiar validated a true.",
+  "queries": [
+    {
+      "query": "cáncer de mama triple negativo",
+      "relevant": [
+        {
+          "id": "trabajo-019",
+          "title": "Efecto del momento de la quimioterapia en el cáncer de mama triple negativo: un estudio con evidencia del mundo real"
+        },
+        {
+          "id": "trabajo-035",
+          "title": "Caracterización transcriptómica del cáncer de mama triple negativo (CMTN) en muestras de mujeres atendidas en un hospital de Santander"
+        },
+        {
+          "id": "trabajo-088",
+          "title": "Pembrolizumab dosis reducida VS dosis fija de 200 mg en neoadyuvancia de cáncer de mama triple negativo: estudio de cohorte prospectivo"
+        },
+        {
+          "id": "trabajo-170",
+          "title": "Supervivencia y factores pronósticos en cáncer de mama triple negativo estadios tempranos tratados con neoadyuvancia con quimioinmunoterapia en la Clínica Colombia, Bogotá dc."
+        },
+        {
+          "id": "trabajo-179",
+          "title": "Más allá del triple negativo: carga residual y recaída temprana en el carcinoma metaplásico de mama"
+        },
+        {
+          "id": "trabajo-216",
+          "title": "Efecto del momento de la quimioterapia en el cáncer de mama triple negativo: un estudio con evidencia del mundo real_x000B__x000B_"
+        },
+        {
+          "id": "trabajo-262",
+          "title": "Impacto sobre la supervivencia de la capecitabina adyuvante en pacientes latinoamericanas con cáncer de mama triple negativo y enfermedad residual: un estudio del mundo real"
+        },
+        {
+          "id": "trabajo-268",
+          "title": "Efecto del momento de la quimioterapia, el uso de antraciclinas y el estado de pCR en el pronóstico del cáncer de mama triple negativo HER2‑low en estadio temprano: un estudio con evidencia del mundo real"
+        }
+      ]
+    },
+    {
+      "query": "cáncer de pulmón",
+      "relevant": [
+        {
+          "id": "trabajo-010",
+          "title": "Tiempo hasta el inicio de osimertinib en primera línea en adultos colombianos con cáncer de pulmón avanzado EGFR mutado"
+        },
+        {
+          "id": "trabajo-021",
+          "title": "Automatización para la evaluación de la expresión de PD L1 en pacientes latinoamericanos con cáncer de pulmón de células no pequeñas"
+        },
+        {
+          "id": "trabajo-026",
+          "title": "Sistema de apoyo clínico para la detección, caracterización radiómica y clasificación de nódulos pulmonares con proyección de escenarios terapéuticos"
+        },
+        {
+          "id": "trabajo-038",
+          "title": "Los periodontopatógenos salivales predicen una mala respuesta a los inhibidores de puntos de control inmunitarios en el cáncer de pulmón de células no pequeñas avanzado: un estudio observacional prospectivo."
+        },
+        {
+          "id": "trabajo-065",
+          "title": "Supervivencia en pacientes hispanos con cáncer de pulmón de células no pequeñas con mutación del EGFR y ADN tumoral circulante persistente tratados con osimertinib de primera línea."
+        },
+        {
+          "id": "trabajo-119",
+          "title": "Fenómeno de Lázaro tras osimertinib en un paciente con adenocarcinoma pulmonar EGFR mutado declarado paliativo y con patrón radiológico de suelta de globos"
+        },
+        {
+          "id": "trabajo-128",
+          "title": "Rehabilitación y ejercicio en cáncer pulmonar: revisión exploratoria de capacidad funcional, síntomas y desenlaces clínicos: una revisión exploratoria"
+        },
+        {
+          "id": "trabajo-131",
+          "title": "Características clínicas, moleculares, tratamiento de primera línea y supervivencia en cáncer de pulmón de células no pequeñas metastásico en Clínica Colombia Bogotá Dc."
+        },
+        {
+          "id": "trabajo-158",
+          "title": "Perfil molecular por secuenciación de nueva generación en cáncer de pulmón: estudio descriptivo en un centro de referencia colombiano"
+        },
+        {
+          "id": "trabajo-163",
+          "title": "Supervivencia global en pacientes de 70 años o mas con cáncer de pulmón de células no pequeñas metastásico. Análisis del registro RECAP"
+        },
+        {
+          "id": "trabajo-185",
+          "title": "Características clínicas y supervivencia en cáncer de pulmón de células no pequeñas (NSCL) estadios temprano I-IIIA. registro colombiano RECAP"
+        },
+        {
+          "id": "trabajo-218",
+          "title": "Perfil biomolecular en adultos mayores con cáncer de pulmón de célula no pequeña: Experiencia de un centro de cuidado clínico"
+        },
+        {
+          "id": "trabajo-228",
+          "title": "Características clínicas, moleculares, tratamiento de primera línea y supervivencia en cáncer de pulmón de células no pequeñas metastásico EGFR +. registro colombiano RECAP."
+        },
+        {
+          "id": "trabajo-231",
+          "title": "Adenocarcinoma pulmonar EGFR L858R con metástasis cerebral oculta y respuesta completa a Osimertinib"
+        },
+        {
+          "id": "trabajo-292",
+          "title": "Características moleculares, patrones de tratamiento de primera línea y supervivencia en cáncer de pulmón de células no pequeñas (NSLC) metastásico en Colombia: registro multicéntrico RECAPC."
+        },
+        {
+          "id": "trabajo-297",
+          "title": "Características clínicas, moleculares, tratamiento de primera línea y supervivencia en cáncer de pulmón de células no pequeñas metastásico ALK + registro colombiano RECAP."
+        },
+        {
+          "id": "trabajo-298",
+          "title": "Un escamoso que rompió la regla: respuesta a osimertinib más quimioterapia en cáncer de pulmón con EGFR L858R"
+        },
+        {
+          "id": "trabajo-303",
+          "title": "Potencial terapéutico del sistema CRISPR-Cas9 en el cáncer de pulmón de células no pequeñas con alteraciones moleculares en EGFR, KRAS y ALK: una revisión de alcance"
+        }
+      ]
+    },
+    {
+      "query": "inmunoterapia e inhibidores de checkpoint",
+      "relevant": [
+        {
+          "id": "trabajo-001",
+          "title": "Hipoacusia neurosensorial asociada a inmunoterapia en melanoma metastásico BRAF no mutado: reporte de caso"
+        },
+        {
+          "id": "trabajo-038",
+          "title": "Los periodontopatógenos salivales predicen una mala respuesta a los inhibidores de puntos de control inmunitarios en el cáncer de pulmón de células no pequeñas avanzado: un estudio observacional prospectivo."
+        },
+        {
+          "id": "trabajo-084",
+          "title": "Carcinoma adenoescamoso de cérvix metastásico en paciente con síndrome de Lynch: respuesta completa prolongada a pembrolizumab y segundo primario colorrectal"
+        },
+        {
+          "id": "trabajo-088",
+          "title": "Pembrolizumab dosis reducida VS dosis fija de 200 mg en neoadyuvancia de cáncer de mama triple negativo: estudio de cohorte prospectivo"
+        },
+        {
+          "id": "trabajo-108",
+          "title": "Inmunoterapia en melanoma acral: Experiencia del mundo real en una cohorte retrospectiva colombiana"
+        },
+        {
+          "id": "trabajo-113",
+          "title": "Modelo de simulación económica para Análisis de Impacto Presupuestal de estrategias alternativas de dosificación de pembrolizumab en pacientes de una institución oncológica colombiana, 2019-2025"
+        },
+        {
+          "id": "trabajo-114",
+          "title": "Dosis bajas comparadas con dosis estándar de inmunoterapia en tumores sólidos en Colombia: reporte preliminar de un estudio multicéntrico observacional en reclutamiento activo"
+        },
+        {
+          "id": "trabajo-146",
+          "title": "Reintroducción exitosa de nivolumab tras toxicidad audiovestibular asociada a inhibidores de checkpoint inmunológico: un reporte de caso"
+        },
+        {
+          "id": "trabajo-170",
+          "title": "Supervivencia y factores pronósticos en cáncer de mama triple negativo estadios tempranos tratados con neoadyuvancia con quimioinmunoterapia en la Clínica Colombia, Bogotá dc."
+        },
+        {
+          "id": "trabajo-188",
+          "title": "Respuesta patológica completa con radioterapia e inmunoterapia neoadyuvante en un sarcoma pleomórfico indiferenciado de extremidad: reporte de caso"
+        },
+        {
+          "id": "trabajo-244",
+          "title": "Discordancia radiológico-patológica tras pembrolizumab en adenocarcinoma duodenal MSI-H/dMMR: de enfermedad irresecable a respuesta patológica completa"
+        },
+        {
+          "id": "trabajo-255",
+          "title": "¿Resistencia a la inmunoterapia? Explorando el papel de la inmunoterapia neoadyuvante en melanoma lentiginoso acral: una serie de casos"
+        },
+        {
+          "id": "trabajo-287",
+          "title": "Efectos adversos inmunológicos graves luego de una aplicación de nivolumab más ipilimumab en un paciente con carcinoma de células renales de células claras metastásico: un caso clínico"
+        },
+        {
+          "id": "trabajo-289",
+          "title": "Control prolongado de colangiocarcinoma intrahepático metastásico con quimioinmunoterapia, mantenimiento con durvalumab y tratamiento local de oligoprogresiones: reporte de caso"
+        }
+      ]
+    },
+    {
+      "query": "cáncer gástrico",
+      "relevant": [
+        {
+          "id": "trabajo-071",
+          "title": "Carga clínica y económica del cáncer gástrico en Colombia: supervivencia a cinco años y costos directos según estadio clínico"
+        },
+        {
+          "id": "trabajo-093",
+          "title": "Perfil clinicopatológico y determinantes pronósticos de supervivencia a 5 años en el cáncer gástrico de aparición temprana en comparación al de aparición tardía: estudio de cohorte multicéntrico"
+        },
+        {
+          "id": "trabajo-186",
+          "title": "Expresión de claudina 18.2 en adenocarcinoma gástrico y de la unión gastroesofágica: prevalencia y coexpresión con biomarcadores en una cohorte colombiana"
+        },
+        {
+          "id": "trabajo-192",
+          "title": "Expresión de Claudina 18.2 y supervivencia global en pacientes con adenocarcinoma gástrico metastásico: cohorte colombiana"
+        }
+      ]
+    },
+    {
+      "query": "microbioma y cáncer",
+      "relevant": [
+        {
+          "id": "trabajo-032",
+          "title": "Microbioma oral en pacientes con mesotelioma maligno. Un estudio exploratorio"
+        },
+        {
+          "id": "trabajo-038",
+          "title": "Los periodontopatógenos salivales predicen una mala respuesta a los inhibidores de puntos de control inmunitarios en el cáncer de pulmón de células no pequeñas avanzado: un estudio observacional prospectivo."
+        },
+        {
+          "id": "trabajo-085",
+          "title": "Fragmentación de la red y depleción microbiana selectiva caracterizan el microbioma del cáncer epitelial de ovario en una cohorte colombiana"
+        },
+        {
+          "id": "trabajo-134",
+          "title": "Dinámica del microbioma oral y gastrointestinal en pacientes oncológicos con sepsis"
+        }
+      ]
+    },
+    {
+      "query": "tamizaje y detección temprana de cáncer",
+      "relevant": [
+        {
+          "id": "trabajo-053",
+          "title": "Participación y seguimiento en el tamizaje de cáncer de cuello uterino con la prueba de VPH por auto-toma: resultados de un ensayo comunitario en dos departamentos distantes de Colombia."
+        },
+        {
+          "id": "trabajo-094",
+          "title": "Beneficio económico de la expansión de la cobertura del tamizaje de cáncer de mama en Colombia"
+        },
+        {
+          "id": "trabajo-097",
+          "title": "Beneficio clínico, económico y social del tamizaje de cánceres de alta prevalencia sin estrategias de detección temprana en Colombia"
+        },
+        {
+          "id": "trabajo-144",
+          "title": "Más allá de la tamización: Seguimiento multidisciplinario para la identificación e intervención del riesgo de malnutrición como estrategia para reducir barreras en la seguridad del paciente oncológico en una institución colombiana"
+        }
+      ]
+    },
+    {
+      "query": "cáncer infantil y pediátrico",
+      "relevant": [
+        {
+          "id": "trabajo-002",
+          "title": "Supervivencia Global de Pacientes Menores de 18 Años con Sarcoma de Ewing y Ewing-like Tratados con el Protocolo AEWS0031 Comprimido"
+        },
+        {
+          "id": "trabajo-043",
+          "title": "RIESGO DE DESNUTRICIÓN Y ALTERACIONES CONCURRENTES DE LA INGESTA EN PACIENTES PEDIÁTRICOS CON LEUCEMIA"
+        },
+        {
+          "id": "trabajo-153",
+          "title": "Signos de alarma y consultas repetidas antes de la sospecha de cáncer infantil en Bucaramanga"
+        },
+        {
+          "id": "trabajo-156",
+          "title": "Tumores germinales primarios intracraneales pediátricos: experiencia y resultados de supervivencia en un centro de referencia de un país de ingresos medios"
+        },
+        {
+          "id": "trabajo-199",
+          "title": "CARCINOMA ADRENOCORTICAL PEDIÁTRICO"
+        },
+        {
+          "id": "trabajo-223",
+          "title": "PERFIL CLÍNICO, PATOLÓGICO Y TERAPÉUTICO DEL TUMOR DE WILMS: ESTUDIO MULTICÉNTRICO EN EL NORORIENTE COLOMBIANO (2015 – 2025)"
+        }
+      ]
+    },
+    {
+      "query": "metástasis cerebrales",
+      "relevant": [
+        {
+          "id": "trabajo-031",
+          "title": "Características clínicas, perfil molecular y supervivencia de la carcinomatosis leptomeníngea en tumores sólidos: un estudio longitudinal"
+        },
+        {
+          "id": "trabajo-037",
+          "title": "Metástasis cerebrales en tumores sólidos: historia natural, respuesta intracraneal y factores pronósticos en un estudio longitudinal"
+        },
+        {
+          "id": "trabajo-052",
+          "title": "Validación del rendimiento pronóstico de las escalas RPA y ds-GPA en metástasis cerebrales de tumores sólidos: estudio longitudinal secundario"
+        },
+        {
+          "id": "trabajo-066",
+          "title": "Radioterapia estereotáctica preoperatoria para metástasis cerebrales"
+        },
+        {
+          "id": "trabajo-105",
+          "title": "Eficacia, seguridad y supervivencia del pemetrexed intratecal en carcinomatosis leptomeníngea por carcinoma de pulmón EGFR mutado"
+        },
+        {
+          "id": "trabajo-231",
+          "title": "Adenocarcinoma pulmonar EGFR L858R con metástasis cerebral oculta y respuesta completa a Osimertinib"
+        }
+      ]
+    },
+    {
+      "query": "costos y evaluación económica en oncología",
+      "relevant": [
+        {
+          "id": "trabajo-071",
+          "title": "Carga clínica y económica del cáncer gástrico en Colombia: supervivencia a cinco años y costos directos según estadio clínico"
+        },
+        {
+          "id": "trabajo-080",
+          "title": "Tratamiento temprano del COVID-19 una alternativa de bajo costo con potencial impacto clínico para disminuir la mortalidad."
+        },
+        {
+          "id": "trabajo-082",
+          "title": "Análisis de ahorro de costos en pacientes con cáncer de próstata metastásico resistente a castración incluidos en ensayos clínicos en Valledupar, Cesar, Colombia."
+        },
+        {
+          "id": "trabajo-094",
+          "title": "Beneficio económico de la expansión de la cobertura del tamizaje de cáncer de mama en Colombia"
+        },
+        {
+          "id": "trabajo-097",
+          "title": "Beneficio clínico, económico y social del tamizaje de cánceres de alta prevalencia sin estrategias de detección temprana en Colombia"
+        },
+        {
+          "id": "trabajo-113",
+          "title": "Modelo de simulación económica para Análisis de Impacto Presupuestal de estrategias alternativas de dosificación de pembrolizumab en pacientes de una institución oncológica colombiana, 2019-2025"
+        },
+        {
+          "id": "trabajo-164",
+          "title": "Optimización del costo oncológico mediante gestión clínica y auditoría inteligente basada en PENTA en el Hospital Internacional de Colombia"
+        }
+      ]
+    },
+    {
+      "query": "inteligencia artificial en oncología",
+      "relevant": [
+        {
+          "id": "trabajo-021",
+          "title": "Automatización para la evaluación de la expresión de PD L1 en pacientes latinoamericanos con cáncer de pulmón de células no pequeñas"
+        },
+        {
+          "id": "trabajo-026",
+          "title": "Sistema de apoyo clínico para la detección, caracterización radiómica y clasificación de nódulos pulmonares con proyección de escenarios terapéuticos"
+        },
+        {
+          "id": "trabajo-028",
+          "title": "Implementación de juntas médicas híbridas soportadas por inteligencia artificial agéntica en un centro oncológico colombiano"
+        },
+        {
+          "id": "trabajo-036",
+          "title": "Sistema de apoyo basado en inteligencia artificial para la segmentación y caracterización radiómica del colangiocarcinoma en resonancia magnética"
+        }
+      ]
+    },
+    {
+      "query": "nutrición y desnutrición en pacientes con cáncer",
+      "relevant": [
+        {
+          "id": "trabajo-020",
+          "title": "Desempeño diagnóstico de herramientas de tamizaje nutricional en pacientes oncológicos hospitalizados: estudio de prueba diagnóstica en un hospital de alta complejidad en Colombia"
+        },
+        {
+          "id": "trabajo-024",
+          "title": "Ángulo de fase como marcador pronóstico en pacientes adultos con cáncer: revisión sistemática de 19 estudios y 6.605 pacientes"
+        },
+        {
+          "id": "trabajo-043",
+          "title": "RIESGO DE DESNUTRICIÓN Y ALTERACIONES CONCURRENTES DE LA INGESTA EN PACIENTES PEDIÁTRICOS CON LEUCEMIA"
+        },
+        {
+          "id": "trabajo-083",
+          "title": "Acceso a la valoración nutricional en personas con cáncer colorrectal en Colombia 2014–2024: hallazgos de un registro administrativo nacional"
+        },
+        {
+          "id": "trabajo-144",
+          "title": "Más allá de la tamización: Seguimiento multidisciplinario para la identificación e intervención del riesgo de malnutrición como estrategia para reducir barreras en la seguridad del paciente oncológico en una institución colombiana"
+        },
+        {
+          "id": "trabajo-207",
+          "title": "NUTRISCORE como factor asociado a la Supervivencia Global en Cáncer de Mama avanzado, RE+/HER2-, tratado con Inhibidores de CDK4/6 en 1ª línea en un centro oncológico de referencia en Medellín, Colombia"
+        }
+      ]
+    },
+    {
+      "query": "cáncer de recto",
+      "relevant": [
+        {
+          "id": "trabajo-046",
+          "title": "Factores predictores pretratamiento de respuesta clínica completa en cáncer de recto localmente avanzado tratado con terapia neoadyuvante total"
+        },
+        {
+          "id": "trabajo-071",
+          "title": "Carga clínica y económica del cáncer gástrico en Colombia: supervivencia a cinco años y costos directos según estadio clínico"
+        },
+        {
+          "id": "trabajo-109",
+          "title": "Respuesta clínica completa y preservación de órgano en cáncer de recto localmente avanzado tratado con terapia neoadyuvante total: comparación entre las estrategias OPRA y RÁPIDO"
+        },
+        {
+          "id": "trabajo-251",
+          "title": "Respuesta patológica completa y supervivencia post terapia neoadyuvante en cáncer de recto: Experiencia de vida real latinoamericana"
+        }
+      ]
+    },
+    {
+      "query": "cáncer de ovario",
+      "relevant": [
+        {
+          "id": "trabajo-078",
+          "title": "Espectro de variantes germinales en mujeres colombianas con cáncer epitelial de ovario: estudio descriptivo unicéntrico"
+        },
+        {
+          "id": "trabajo-081",
+          "title": "Prevalencia y espectro de variantes en genes de reparación por recombinación homóloga en el cáncer de ovario en Latinoamérica: una revisión sistemática y metaanálisis"
+        },
+        {
+          "id": "trabajo-085",
+          "title": "Fragmentación de la red y depleción microbiana selectiva caracterizan el microbioma del cáncer epitelial de ovario en una cohorte colombiana"
+        },
+        {
+          "id": "trabajo-126",
+          "title": "Carcinoma de célula pequeña de ovario tipo hipercalcémico en paciente joven: respuesta completa tras estrategia multimodal con quimioterapia intensiva y trasplante autólogo"
+        },
+        {
+          "id": "trabajo-191",
+          "title": "Adenocarcinoma de fenotipo mülleriano con debut inguinal en una mujer de 84 años con teratoma quístico maduro de ovario: ¿transformación maligna o coexistencia?"
+        },
+        {
+          "id": "trabajo-205",
+          "title": "Efecto pronóstico de la mutación BRCA en cáncer de ovario : Estudio de mundo real"
+        }
+      ]
+    },
+    {
+      "query": "melanoma",
+      "relevant": [
+        {
+          "id": "trabajo-001",
+          "title": "Hipoacusia neurosensorial asociada a inmunoterapia en melanoma metastásico BRAF no mutado: reporte de caso"
+        },
+        {
+          "id": "trabajo-095",
+          "title": "Melanoma metastásico en Colombia: tratamiento y factores pronósticos en una cohorte multicéntrica retrospectiva"
+        },
+        {
+          "id": "trabajo-108",
+          "title": "Inmunoterapia en melanoma acral: Experiencia del mundo real en una cohorte retrospectiva colombiana"
+        },
+        {
+          "id": "trabajo-184",
+          "title": "Características clínicas, moleculares y factores pronósticos de la supervivencia en una cohorte colombiana multiinstitucional de melanoma maligno. Registro REMEC"
+        },
+        {
+          "id": "trabajo-255",
+          "title": "¿Resistencia a la inmunoterapia? Explorando el papel de la inmunoterapia neoadyuvante en melanoma lentiginoso acral: una serie de casos"
+        }
+      ]
+    },
+    {
+      "query": "infecciones en pacientes oncológicos",
+      "relevant": [
+        {
+          "id": "trabajo-056",
+          "title": "Registro de Tuberculosis en pacientes con cáncer: serie de casos en un centro oncológico de Bogotá, Colombia"
+        },
+        {
+          "id": "trabajo-062",
+          "title": "Incidencia de Infección Durante el Período Febril Asociado a la Infusión de Células en el Trasplante Haploidéntico con Ciclofosfamida Postrasplante. Experiencia de un centro en 113 pacientes"
+        },
+        {
+          "id": "trabajo-080",
+          "title": "Tratamiento temprano del COVID-19 una alternativa de bajo costo con potencial impacto clínico para disminuir la mortalidad."
+        },
+        {
+          "id": "trabajo-101",
+          "title": "Factores de riesgo asociados con infección por enterobacterales resistentes a carbapenémicos en pacientes oncológicos previamente colonizados"
+        },
+        {
+          "id": "trabajo-134",
+          "title": "Dinámica del microbioma oral y gastrointestinal en pacientes oncológicos con sepsis"
+        },
+        {
+          "id": "trabajo-139",
+          "title": "Colonización por enterobacterales productores de carbapenemasas en pacientes críticos con cáncer: un perfil microbiológico de mayor riesgo más que un marcador pronóstico independiente"
+        }
+      ]
+    },
+    {
+      "query": "pacientes adultos mayores con cáncer",
+      "relevant": [
+        {
+          "id": "trabajo-005",
+          "title": "Tiempo transcurrido desde el diagnóstico de cáncer y la incidencia a largo plazo del empeoramiento de la fragilidad en adultos mayores: Análisis longitudinal de la Encuesta Nacional sobre Salud y Envejecimiento Mexicana"
+        },
+        {
+          "id": "trabajo-163",
+          "title": "Supervivencia global en pacientes de 70 años o mas con cáncer de pulmón de células no pequeñas metastásico. Análisis del registro RECAP"
+        },
+        {
+          "id": "trabajo-218",
+          "title": "Perfil biomolecular en adultos mayores con cáncer de pulmón de célula no pequeña: Experiencia de un centro de cuidado clínico"
+        },
+        {
+          "id": "trabajo-239",
+          "title": "CÁNCER DE PRÓSTATA: BIOLOGÍA TUMORAL FRENTE A EDAD CRONOLÓGICA EN LA DECISIÓN E INTENSIFICACIÓN TERAPÉUTICA EN UNA COHORTE RETROSPECTIVA DE VIDA REAL"
+        },
+        {
+          "id": "trabajo-253",
+          "title": "EQUIDAD ASISTENCIAL A TRAVÉS DEL ENVEJECIMIENTO: OPORTUNIDAD TEMPORAL EN UNA RUTA ONCOLÓGICA ESTRUCTURADA"
+        }
+      ]
+    }
+  ]
+}

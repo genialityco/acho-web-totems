@@ -1,22 +1,23 @@
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { db } from "../lib/admin";
 import { GEMINI_API_KEY } from "../lib/gemini";
+import { indexSignature, readPaperIndexInputs } from "../lib/paperMetadata";
 import { indexPaper } from "./indexPaper";
 
-const asString = (value: unknown): string => (typeof value === "string" ? value : "");
-
-// Se dispara al crear/editar/borrar un paper (carga individual, edición y
-// carga masiva por Excel escriben todas al mismo doc). Si el paper fue
-// borrado, borra su índice; si urlPdf no cambió (ej. edición de título, o el
-// increment de voteCount que hace castVote), no hace nada. Escribe SIEMPRE en
-// la colección hermana paperSearchIndex, nunca en papers/{paperId}, para no
-// volver a disparar este mismo trigger.
+// Se dispara al crear/editar/borrar un paper (carga individual, edición y carga masiva por Excel
+// escriben todas al mismo doc). Si el paper fue borrado, borra su índice. Si no cambió nada de lo
+// que entra al índice (PDF, título, campos; ver indexSignature) no hace nada: así un voto, una vista
+// o una descarga no re-indexan. Si cambió solo el título o los campos, indexPaper reutiliza el texto
+// ya extraído y solo regenera el embedding. Escribe SIEMPRE en la colección hermana
+// paperSearchIndex, nunca en papers/{paperId}, para no volver a disparar este mismo trigger.
 export const indexPaperSearch = onDocumentWritten(
   {
     document: "events/{eventSlug}/papers/{paperId}",
     region: "us-central1",
     memory: "1GiB",
-    timeoutSeconds: 120,
+    // Holgado: en una carga masiva, el presupuesto de tokens y los reintentos ante un 429 de la cuota de
+    // Gemini pueden esperar del orden de un minuto antes de generar el embedding.
+    timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
     maxInstances: 10,
   },
@@ -30,10 +31,13 @@ export const indexPaperSearch = onDocumentWritten(
       return;
     }
 
-    const urlPdf = asString(after.data()?.urlPdf);
-    const prevUrlPdf = before?.exists ? asString(before.data()?.urlPdf) : undefined;
-    if (before?.exists && urlPdf === prevUrlPdf) return;
+    if (
+      before?.exists &&
+      indexSignature(readPaperIndexInputs(before.data())) === indexSignature(readPaperIndexInputs(after.data()))
+    ) {
+      return;
+    }
 
-    await indexPaper(eventSlug, paperId, urlPdf);
+    await indexPaper(eventSlug, paperId);
   }
 );

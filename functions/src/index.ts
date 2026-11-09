@@ -7,6 +7,7 @@ export * from "./search/indexPaperSearchTrigger";
 export * from "./search/embedSearchQuery";
 export * from "./search/explainSearchMatch";
 export * from "./search/reindexPaperSearch";
+export * from "./search/retryPaperSearchIndex";
 
 interface CastVoteRequest {
   eventSlug?: string;

@@ -22,6 +22,7 @@ export const embedSearchQuery = onCall(
       throw new HttpsError("invalid-argument", "La búsqueda es demasiado larga.");
     }
 
+    // embedText hace un solo reintento corto para RETRIEVAL_QUERY: la persona está esperando el resultado.
     const embedding = await embedText(query, "RETRIEVAL_QUERY");
     return { embedding, dim: EMBEDDING_DIMENSION };
   }

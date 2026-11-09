@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { db } from "../lib/admin";
 import { GEMINI_API_KEY, explainMatch } from "../lib/gemini";
 import { MAX_EMBEDDING_INPUT_CHARS } from "../lib/pdfText";
+import { describeAttributes, FieldDoc, readPaperIndexInputs } from "../lib/paperMetadata";
 
 interface ExplainSearchMatchRequest {
   eventSlug?: string;
@@ -11,35 +12,6 @@ interface ExplainSearchMatchRequest {
 }
 
 const MAX_QUERY_LENGTH = 300;
-
-interface FieldDoc {
-  id: string;
-  label?: unknown;
-  options?: unknown;
-}
-
-// Valores de los campos del evento (events/{slug}/fields) en el paper, como "Nombre: valor".
-// Los campos de lista guardan ids de opciones, que se traducen a sus nombres.
-const describeAttributes = (fields: FieldDoc[], attributes: unknown): string[] => {
-  if (!attributes || typeof attributes !== "object") return [];
-  const values = attributes as Record<string, unknown>;
-  return fields.flatMap((field) => {
-    const label = typeof field.label === "string" ? field.label : field.id;
-    const value = values[field.id];
-    const optionName = new Map(
-      (Array.isArray(field.options) ? field.options : [])
-        .filter((o): o is { id: string; name: string } => typeof o?.id === "string" && typeof o?.name === "string")
-        .map((o) => [o.id, o.name])
-    );
-    const ids = Array.isArray(value) ? value : [value];
-    const text = optionName.size
-      ? ids.map((id) => optionName.get(String(id))).filter(Boolean).join(", ")
-      : typeof value === "string" || typeof value === "number"
-      ? String(value)
-      : "";
-    return text ? [`${label}: ${text}`] : [];
-  });
-};
 
 // Explica en una o dos frases por qué un paper apareció en una búsqueda conceptual. Es
 // pública (sin auth), como embedSearchQuery, pero solo responde si el admin activó
@@ -85,7 +57,10 @@ export const explainSearchMatch = onCall(
       const explanation = await explainMatch({
         query,
         title: typeof paper.title === "string" ? paper.title : "",
-        attributes: describeAttributes(fieldsSnap.docs.map((d) => ({ id: d.id, ...d.data() })), paper.attributes),
+        attributes: describeAttributes(
+          fieldsSnap.docs.map((d): FieldDoc => ({ id: d.id, ...d.data() })),
+          readPaperIndexInputs(paper).attributes
+        ),
         authors: Array.isArray(paper.authors) ? paper.authors.filter((a): a is string => typeof a === "string") : [],
         text,
         language: language === "en" ? "en" : "es",

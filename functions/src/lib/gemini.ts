@@ -26,14 +26,101 @@ async function getClient(): Promise<GoogleGenAIType> {
   return client;
 }
 
-export async function embedText(text: string, taskType: EmbeddingTaskType): Promise<number[]> {
+// Errores de la Gemini API que vale la pena reintentar: cuota/ráfaga (429) y fallas del servidor.
+// Un error sin status HTTP (red, timeout) también se reintenta.
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Espera que pide la API en un 429 ("retryDelay":"8s" dentro del mensaje), en ms; 0 si no la indica.
+const retryDelayMs = (err: unknown): number => {
+  const match = String((err as { message?: unknown })?.message ?? "").match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+  return match ? Number(match[1]) * 1000 : 0;
+};
+
+interface RetryOptions {
+  attempts: number;
+  // Tope de cada espera: el indexado puede esperar lo que pida la cuota, una búsqueda del visitante no.
+  maxDelayMs: number;
+}
+
+// Reintenta errores pasajeros. Un 429 (cuota) espera lo que indica la API o, si no lo dice, 10s, 20s,
+// 30s…: la cuota del plan gratuito es por minuto, y esperas de pocos segundos solo vuelven a chocar.
+// Otros errores esperan 1s, 2s, 4s… Todo con algo de azar para que las llamadas en paralelo no
+// reintenten a la vez.
+async function withRetries<T>(call: () => Promise<T>, { attempts, maxDelayMs }: RetryOptions): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await call();
+    } catch (err) {
+      const status = (err as { status?: unknown })?.status;
+      const retryable = typeof status !== "number" || RETRYABLE_STATUSES.has(status);
+      if (!retryable || attempt >= attempts) throw err;
+      const delay =
+        status === 429 ? Math.max(retryDelayMs(err), 10_000 * attempt) : 1000 * 2 ** (attempt - 1);
+      await sleep(Math.min(delay, maxDelayMs) + Math.random() * 1000);
+    }
+  }
+}
+
+// Presupuesto de tokens por minuto para indexar documentos, por instancia de la función. El plan
+// gratuito de la Gemini API permite 30 000 tokens/minuto de embeddings por proyecto (y la cuota es
+// compartida con las búsquedas de los visitantes), así que por defecto se usa algo menos. Con un plan
+// pago se puede subir con GEMINI_EMBED_TOKENS_PER_MINUTE en functions/.env.
+const EMBED_TOKENS_PER_MINUTE = Number(process.env.GEMINI_EMBED_TOKENS_PER_MINUTE) || 24_000;
+// Estimación conservadora (el español ronda 4 caracteres por token).
+const estimateTokens = (text: string) => Math.ceil(text.length / 3) + 50;
+const recentUsage: Array<{ at: number; tokens: number }> = [];
+
+// Espera hasta que en el último minuto quede presupuesto para `tokens`. Comprobar y anotar ocurre sin
+// await de por medio, así que las llamadas concurrentes de una misma instancia no se pisan.
+async function reserveTokens(tokens: number): Promise<void> {
+  for (;;) {
+    const now = Date.now();
+    while (recentUsage.length && now - recentUsage[0].at >= 60_000) recentUsage.shift();
+    const used = recentUsage.reduce((sum, u) => sum + u.tokens, 0);
+    if (!recentUsage.length || used + tokens <= EMBED_TOKENS_PER_MINUTE) {
+      recentUsage.push({ at: now, tokens });
+      return;
+    }
+    await sleep(60_000 - (now - recentUsage[0].at) + 100 + Math.random() * 500);
+  }
+}
+
+interface EmbedOptions {
+  // Título del documento: la API lo usa para mejorar el embedding de RETRIEVAL_DOCUMENT.
+  title?: string;
+}
+
+// RETRIEVAL_DOCUMENT (indexado): pasa por el presupuesto de tokens y espera lo que haga falta ante un
+// 429. RETRIEVAL_QUERY (búsqueda de un visitante): un solo reintento corto, la persona está esperando.
+export async function embedText(
+  text: string,
+  taskType: EmbeddingTaskType,
+  { title }: EmbedOptions = {}
+): Promise<number[]> {
   const client = await getClient();
-  const response = await client.models.embedContent({
-    model: EMBEDDING_MODEL,
-    contents: text,
-    config: { taskType, outputDimensionality: EMBEDDING_DIMENSION },
-  });
-  return response.embeddings?.[0]?.values ?? [];
+  const isDocument = taskType === "RETRIEVAL_DOCUMENT";
+  if (isDocument) await reserveTokens(estimateTokens(text));
+  const response = await withRetries(
+    () =>
+      client.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: text,
+        config: {
+          taskType,
+          outputDimensionality: EMBEDDING_DIMENSION,
+          ...(isDocument && title ? { title } : {}),
+        },
+      }),
+    isDocument ? { attempts: 5, maxDelayMs: 60_000 } : { attempts: 2, maxDelayMs: 2_000 }
+  );
+  const values = response.embeddings?.[0]?.values ?? [];
+  // Un vector vacío o de otra dimensión no sirve para comparar: mejor fallar que guardarlo como listo.
+  if (values.length !== EMBEDDING_DIMENSION) {
+    throw new Error(`Embedding inválido: se esperaban ${EMBEDDING_DIMENSION} valores y llegaron ${values.length}.`);
+  }
+  return values;
 }
 
 // Alias que siempre apunta al Flash-Lite vigente: la explicación es una frase corta
@@ -79,10 +166,14 @@ export async function explainMatch(input: MatchExplanationInput): Promise<string
     .filter(Boolean)
     .join("\n");
 
-  const response = await client.models.generateContent({
-    model: EXPLANATION_MODEL,
-    contents,
-    config: { systemInstruction: EXPLANATION_SYSTEM_INSTRUCTION, temperature: 0, maxOutputTokens: 1024 },
-  });
+  const response = await withRetries(
+    () =>
+      client.models.generateContent({
+        model: EXPLANATION_MODEL,
+        contents,
+        config: { systemInstruction: EXPLANATION_SYSTEM_INSTRUCTION, temperature: 0, maxOutputTokens: 1024 },
+      }),
+    { attempts: 2, maxDelayMs: 2_000 }
+  );
   return response.text?.trim() ?? "";
 }

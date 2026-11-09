@@ -5,7 +5,7 @@ import { subscribeEvent, EventInfo } from "../services/firestore/eventService";
 import { isListField, optionIdsOf, PaperField, subscribeFields } from "../services/firestore/fieldService";
 import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
-import { subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
+import { hasEmbedding, subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
 import { embedSearchQuery } from "../services/firestore/searchQueryService";
 import { buildSnippet, normalizeSearchText, normalizeText, SearchSnippet } from "../utils/text";
 import { cosineSimilarity } from "../utils/vectorMath";
@@ -179,7 +179,9 @@ export const PostersProvider: React.FC<{
   const bodyByPaperId = useMemo(() => {
     const bodies = new Map<string, { text: string; folded: string }>();
     searchIndexByPaperId.forEach((index, paperId) => {
-      if (index.status !== "ready") return;
+      // Cualquier índice con texto, sea cual sea su estado (como hasEmbedding para la búsqueda conceptual):
+      // un re-indexado fallido conserva el texto anterior del mismo PDF.
+      if (!index.extractedText) return;
       const text = index.extractedText.replace(/\s+/g, " ").trim();
       bodies.set(paperId, { text, folded: normalizeText(text) });
     });
@@ -225,14 +227,14 @@ export const PostersProvider: React.FC<{
     };
 
     // Similitud coseno contra el embedding de cada paper, calculada una sola
-    // vez. Quedan fuera los papers sin embedding listo (y todos, mientras no
-    // haya embedding de la consulta). El mejor puntaje se toma sobre todo el
+    // vez. Quedan fuera los papers sin embedding (y todos, mientras no haya
+    // embedding de la consulta); ver hasEmbedding. El mejor puntaje se toma sobre todo el
     // evento, sin filtros de categoría/tema, para que el corte no cambie al filtrar.
     const semanticScores = new Map<string, number>();
     if (queryEmbedding) {
       posters.forEach((paper) => {
         const index = searchIndexByPaperId.get(paper.id);
-        if (index?.status === "ready" && index.embedding) {
+        if (hasEmbedding(index)) {
           semanticScores.set(paper.id, cosineSimilarity(queryEmbedding, index.embedding));
         }
       });
