@@ -23,6 +23,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { IconArrowLeft, IconExternalLink, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react";
+import VotingControl from "../../components/admin/VotingControl";
 import { AdminEventProvider } from "../../context/AdminEventContext";
 import { useAdminEvent } from "../../context/useAdminEvent";
 import { EventInfo, PublicStyle, updateEvent, VoteMode } from "../../services/firestore/eventService";
@@ -254,16 +255,6 @@ function EventFrame() {
   const tabValue = segment === "fields" && subSegment ? `fields/${subSegment}` : segment;
   const activeTab = tabs.some((t) => t.value === tabValue) ? tabValue : "papers";
 
-  const toggleVoting = async (open: boolean) => {
-    setError(null);
-    try {
-      await updateEvent(eventSlug, { votingOpen: open });
-    } catch (e) {
-      console.error(e);
-      setError("No se pudo cambiar el estado de la votación.");
-    }
-  };
-
   const updateVoteMode = async (mode: VoteMode) => {
     setError(null);
     try {
@@ -334,17 +325,7 @@ function EventFrame() {
           </Group>
         </Stack>
         <Stack gap="xs" align="flex-end">
-          <Stack gap={2} align="flex-end">
-            <Switch
-              size="md"
-              checked={event.votingOpen}
-              onChange={(e) => void toggleVoting(e.currentTarget.checked)}
-              label={event.votingOpen ? "Votación abierta" : "Votación cerrada"}
-            />
-            <Text size="xs" c="dimmed">
-              Cuando está cerrada nadie puede votar.
-            </Text>
-          </Stack>
+          <VotingControl event={event} onError={setError} />
           <Stack gap={2} align="flex-end">
             <SegmentedControl
               size="xs"

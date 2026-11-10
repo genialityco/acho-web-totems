@@ -27,6 +27,7 @@ import {
   OPTION_COLORS,
   optionIdsOf,
   saveFieldOptions,
+  toMantineColor,
 } from "../../services/firestore/fieldService";
 import { normalizeText } from "../../utils/text";
 
@@ -183,7 +184,7 @@ export default function AdminFieldOptions() {
                   <Table.Td>{option.name}</Table.Td>
                   <Table.Td>
                     {option.color ? (
-                      <Badge color={option.color}>
+                      <Badge color={toMantineColor(option.color) ?? undefined}>
                         {OPTION_COLORS.find((c) => c.value === option.color)?.label ?? option.color}
                       </Badge>
                     ) : (
