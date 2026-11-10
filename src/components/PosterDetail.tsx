@@ -346,7 +346,9 @@ const PosterDetail = () => {
           <iframe
             ref={iframeRef}
             className="posterViewerFrame"
-            src={`https://genpdfviewer.netlify.app/?file=${encodeURIComponent(poster.urlPdf)}`}
+            // #zoom=page-fit: el visor (PDF.js) abre con el póster completo a la vista en vez de "Automatic
+            // Zoom" (ajuste al ancho, que en pantallas apaisadas obliga a desplazarse para verlo entero).
+            src={`https://genpdfviewer.netlify.app/?file=${encodeURIComponent(poster.urlPdf)}#zoom=page-fit`}
             title={t("posterDetail.posterIframeTitle")}
             allowFullScreen
           />
