@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { FieldValue, WriteBatch } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, WriteBatch } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { db, assertIsAdmin } from "./lib/admin";
 
@@ -45,6 +45,17 @@ export const castVote = onCall(async (request) => {
     const eventData = eventSnap.data();
     if (eventData?.votingOpen === false) {
       throw new HttpsError("failed-precondition", "La votación para este evento está cerrada.");
+    }
+    // Programación opcional (votingOpensAt/votingClosesAt, Timestamps); misma regla que
+    // getVotingPhase en el cliente, pero con la hora del servidor.
+    const now = Date.now();
+    if (eventData?.votingOpensAt instanceof Timestamp && now < eventData.votingOpensAt.toMillis()) {
+      throw new HttpsError("failed-precondition", "La votación para este evento aún no ha abierto.", {
+        reason: "not-open-yet",
+      });
+    }
+    if (eventData?.votingClosesAt instanceof Timestamp && now >= eventData.votingClosesAt.toMillis()) {
+      throw new HttpsError("failed-precondition", "La votación para este evento ya cerró.", { reason: "ended" });
     }
     // "registered" (default, incl. eventos creados antes de existir voteMode): la cédula debe
     // existir y estar activa en el roster precargado. "open"/"anonymous" se saltan esa validación

@@ -23,7 +23,7 @@ import { useMediaQuery } from "@mantine/hooks";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { countAdvancedCriteria, EMPTY_ADVANCED_SEARCH, usePosters, SearchMode } from "../context/usePosters";
-import { formatAttribute, isListField, selectedOptions } from "../services/firestore/fieldService";
+import { formatAttribute, isListField, selectedOptions, toMantineColor } from "../services/firestore/fieldService";
 import { Paper } from "../services/firestore/paperService";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { useIsTotem } from "../hooks/useIsTotem";
@@ -36,9 +36,9 @@ import "./PosterList.css";
 // Estilo "glass" (event.publicStyle, ver PublicGlass.css): superficies oscuras traslúcidas y bordes
 // luminosos en el color de cada opción. Los colores son nombres de la paleta de Mantine ("green"…).
 const colorVar = (color?: string | null) =>
-  color ? `var(--mantine-color-${color}-6)` : "var(--mantine-primary-color-filled)";
+  toMantineColor(color) ? `var(--mantine-color-${toMantineColor(color)}-6)` : "var(--mantine-primary-color-filled)";
 const lightColorVar = (color?: string | null) =>
-  color ? `var(--mantine-color-${color}-3)` : "var(--mantine-color-blue-3)";
+  toMantineColor(color) ? `var(--mantine-color-${toMantineColor(color)}-3)` : "var(--mantine-color-blue-3)";
 // El color mezclado con transparencia (pct = opacidad en %), para fondos, bordes y brillos.
 const tint = (color: string | null | undefined, pct: number) =>
   `color-mix(in srgb, ${colorVar(color)} ${pct}%, transparent)`;
@@ -139,7 +139,7 @@ export const PosterList = () => {
     onSelect: () => void
   ) => {
     // Las opciones sin color usan el color primario del tema.
-    const activeColor = color ? `var(--mantine-color-${color}-6)` : "var(--mantine-primary-color-filled)";
+    const activeColor = colorVar(color);
     return (
       <Card
         key={key}
@@ -179,7 +179,7 @@ export const PosterList = () => {
           {/* Seleccionada: contador blanco con el número en el color de la opción (antes era del mismo
               color que el fondo de la tarjeta y casi no se veía). */}
           <Badge
-            color={color}
+            color={toMantineColor(color) ?? undefined}
             size={isTotem ? "xl" : "lg"}
             radius="sm"
             variant={glass ? "light" : active ? "white" : "filled"}
@@ -284,7 +284,7 @@ export const PosterList = () => {
                 boxShadow: `-8px 0 22px -10px ${tint(color, 95)}, 0 10px 28px rgba(0, 0, 0, 0.35)`,
                 color: "#f1f3f5",
               }
-            : { borderLeft: color ? `6px solid var(--mantine-color-${color}-6)` : undefined }),
+            : { borderLeft: color ? `6px solid ${colorVar(color)}` : undefined }),
         }}
       >
         <Stack gap={isTotem ? "sm" : "xs"}>
@@ -383,7 +383,14 @@ export const PosterList = () => {
           </Button>
         ) : isTotem ? (
           // Botón ancho y relleno, en el color de la tarjeta: el llamado a la acción se ve desde lejos.
-          <Button component={Link} to={posterUrl} size="lg" fullWidth mt="lg" color={color ?? undefined}>
+          <Button
+            component={Link}
+            to={posterUrl}
+            size="lg"
+            fullWidth
+            mt="lg"
+            color={toMantineColor(color) ?? undefined}
+          >
             {t("posterList.viewPoster")}
           </Button>
         ) : (

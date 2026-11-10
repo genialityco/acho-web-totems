@@ -4,6 +4,7 @@ import {
   DocumentData,
   getDoc,
   onSnapshot,
+  Timestamp,
   setDoc,
   Unsubscribe,
   updateDoc,
@@ -17,6 +18,10 @@ export interface EventInfo {
   slug: string;
   name: string;
   votingOpen: boolean;
+  // Programación opcional de la votación (null = sin límite por ese lado). Solo aplica con votingOpen
+  // en true, que sigue siendo el interruptor maestro: ver getVotingPhase en utils/votingSchedule.ts.
+  votingOpensAt: Date | null;
+  votingClosesAt: Date | null;
   // Si están vacíos, el sitio público usa sus valores por defecto (ver PublicShell/HomePage).
   bannerUrl: string | null;
   backgroundUrl: string | null;
@@ -66,10 +71,14 @@ const optionalUrl = (value: unknown) => (typeof value === "string" && value ? va
 const positiveNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && value > 0 ? value : fallback;
 
+const optionalDate = (value: unknown) => (value instanceof Timestamp ? value.toDate() : null);
+
 const toEvent = (slug: string, data: DocumentData): EventInfo => ({
   slug,
   name: typeof data.name === "string" ? data.name : slug,
   votingOpen: data.votingOpen !== false,
+  votingOpensAt: optionalDate(data.votingOpensAt),
+  votingClosesAt: optionalDate(data.votingClosesAt),
   bannerUrl: optionalUrl(data.bannerUrl),
   backgroundUrl: optionalUrl(data.backgroundUrl),
   screensaverEnabled: data.screensaverEnabled === true,
@@ -130,6 +139,8 @@ export const updateEvent = (
       EventInfo,
       | "name"
       | "votingOpen"
+      | "votingOpensAt"
+      | "votingClosesAt"
       | "bannerUrl"
       | "backgroundUrl"
       | "screensaverEnabled"

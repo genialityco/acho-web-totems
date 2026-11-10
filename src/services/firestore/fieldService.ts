@@ -76,6 +76,9 @@ export const OPTION_COLORS = [
   { value: "gray", label: "Gris" },
 ];
 
+// Mantine usa "grape" para la paleta morada; "purple" puede existir en datos antiguos.
+export const toMantineColor = (color: string | null | undefined) => (color === "purple" ? "grape" : color);
+
 export const isListField = (field: Pick<PaperField, "type">) =>
   field.type === "select" || field.type === "multiselect";
 

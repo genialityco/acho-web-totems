@@ -14,6 +14,7 @@ import {
 import { IconArrowsMaximize, IconArrowsMinimize, IconDownload } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { castVote, VoteError } from "../services/firestore/voteService";
+import { useVotingPhase } from "../hooks/useVotingPhase";
 import { trackPosterDownload, trackPosterView } from "../services/firestore/paperMetricsService";
 import { usePosters } from "../context/usePosters";
 import { formatAttribute, optionIdsOf } from "../services/firestore/fieldService";
@@ -44,7 +45,17 @@ const PosterDetail = () => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const currentIndex = currentPagePosters.findIndex((p) => p.id === id);
-  const votingClosed = event?.votingOpen === false;
+  // Con el evento cargando (phase null) el botón queda habilitado, como antes; castVote valida igual.
+  const { phase: votingPhase } = useVotingPhase(event);
+  const votingClosed = votingPhase !== null && votingPhase !== "open";
+  const voteButtonLabel =
+    votingPhase === "scheduled"
+      ? t("posterDetail.voteNotOpenYet")
+      : votingPhase === "ended"
+        ? t("posterDetail.voteEnded")
+        : votingClosed
+          ? t("posterDetail.voteClosed")
+          : t("posterDetail.voteOpen");
   const isAnonymousVoting = event?.voteMode === "anonymous";
 
   // Ref (no state) a propósito: solo debe contar una vez por visita al póster. Si dependiera
@@ -274,7 +285,7 @@ const PosterDetail = () => {
           className={votingClosed ? undefined : "pulse-button"}
           disabled={votingClosed}
         >
-          {votingClosed ? t("posterDetail.voteClosed") : t("posterDetail.voteOpen")}
+          {voteButtonLabel}
         </Button>
         <Button
           size="md"

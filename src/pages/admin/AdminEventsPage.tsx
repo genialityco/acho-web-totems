@@ -24,6 +24,15 @@ import {
   updateEvent,
 } from "../../services/firestore/eventService";
 import { slugify } from "../../utils/text";
+import { getVotingPhase, VotingPhase } from "../../utils/votingSchedule";
+
+// Estado efectivo (con la programación) al momento de renderizar; el detalle en vivo está en el evento.
+const PHASE_LABEL: Record<VotingPhase, string> = {
+  closed: "Cerrada",
+  scheduled: "Programada",
+  open: "Abierta",
+  ended: "Finalizada",
+};
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // "admin" es una ruta estática y taparía el evento.
@@ -161,7 +170,7 @@ export default function AdminEventsPage() {
                       <Switch
                         checked={event.votingOpen}
                         onChange={(e) => void toggleVoting(event, e.currentTarget.checked)}
-                        label={event.votingOpen ? "Abierta" : "Cerrada"}
+                        label={PHASE_LABEL[getVotingPhase(event, Date.now())]}
                         aria-label={`Votación de ${event.name}`}
                       />
                     </Table.Td>
