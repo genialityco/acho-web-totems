@@ -10,6 +10,43 @@ export const normalizeText = (text: string) => foldText(text).trim();
 // columnas) que romperían una frase como "giardia spp" aunque esté escrita tal cual en el documento.
 export const normalizeSearchText = (text: string) => normalizeText(text.replace(/\s+/g, " "));
 
+// Palabras vacías (español e inglés): no hace falta que aparezcan para que un título coincida, y no
+// se resaltan solas. "cáncer de pulmón" coincide con "…cáncer avanzado de pulmón…" y con "…pulmón y cáncer…".
+const STOPWORDS = new Set(
+  "a al con de del e el en la las lo los o para por u un una y the of and in with for".split(" ")
+);
+
+// Palabras significativas de una búsqueda, ya normalizadas (minúsculas, sin tildes). Si todas son
+// vacías (ej. "de la"), se usan todas.
+export const searchWords = (term: string): string[] => {
+  const words = normalizeSearchText(term).split(" ").filter(Boolean);
+  const meaningful = words.filter((word) => !STOPWORDS.has(word));
+  return meaningful.length ? meaningful : words;
+};
+
+// true si `text` contiene todas las palabras (en cualquier orden y como parte de otra palabra, igual
+// que la búsqueda exacta: "pulmon" coincide con "pulmonar").
+export const containsAllWords = (text: string, words: string[]) => {
+  if (!words.length) return false;
+  const folded = normalizeSearchText(text);
+  return words.every((word) => folded.includes(word));
+};
+
+// Rangos a resaltar para una búsqueda: cada palabra significativa por separado (ver searchWords),
+// ordenados y sin solapamientos.
+export const findWordRanges = (text: string, term: string): Array<[number, number]> => {
+  const ranges = searchWords(term)
+    .flatMap((word) => findMatchRanges(text, word))
+    .sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+  const merged: Array<[number, number]> = [];
+  for (const [start, end] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+};
+
 export const isHttpUrl = (value: string) => {
   try {
     const { protocol } = new URL(value);

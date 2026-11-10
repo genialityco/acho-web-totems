@@ -44,7 +44,10 @@ export type PostersContextType = {
   posters: Paper[];
   currentPagePosters: Paper[];
   screensaverItems: ScreensaverItem[];
+  // Texto del campo de búsqueda, tal cual.
   searchTerm: string;
+  // La búsqueda que se aplica: searchTerm desde 3 caracteres, "" por debajo (ver MIN_SEARCH_LENGTH).
+  activeSearchTerm: string;
   setSearchTerm: (term: string) => void;
   searchMode: SearchMode;
   setSearchMode: (mode: SearchMode) => void;

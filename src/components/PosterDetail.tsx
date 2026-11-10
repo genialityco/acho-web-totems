@@ -18,10 +18,14 @@ import { trackPosterDownload, trackPosterView } from "../services/firestore/pape
 import { usePosters } from "../context/usePosters";
 import { formatAttribute, optionIdsOf } from "../services/firestore/fieldService";
 import { useElementFullscreen } from "../hooks/useElementFullscreen";
+import { useIsTotem } from "../hooks/useIsTotem";
 import { slugify } from "../utils/text";
 import { getAnonymousVoterId } from "../utils/anonymousVoter";
 import { trackEvent } from "../services/analytics";
 import "./PosterDetail.css";
+
+// Margen bajo el visor cuando se ajusta al alto de la pantalla (modo tótem).
+const TOTEM_VIEWER_BOTTOM_GAP = 16;
 
 const pdfFileName = (title: string) => `${slugify(title).slice(0, 100) || "poster"}.pdf`;
 
@@ -73,6 +77,9 @@ const PosterDetail = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, isOverlay, toggle: toggleFullscreen } = useElementFullscreen(viewerRef);
+  const isTotem = useIsTotem();
+  // Alto del visor en modo tótem (px), o null para el alto normal (85vh, ver PosterDetail.css).
+  const [totemViewerHeight, setTotemViewerHeight] = useState<number | null>(null);
 
   // El visor de PDF es un iframe de otro origen: la actividad del mouse/teclado dentro de
   // él no llega a este window, así que el detector de inactividad del protector de pantalla
@@ -184,6 +191,40 @@ const PosterDetail = () => {
     }
   };
 
+  // En el tótem, la página del póster ocupa exactamente la pantalla: el visor llena el alto que queda
+  // debajo de los botones y la página no se desplaza. Si se pudiera desplazar (antes medía 85vh + el
+  // encabezado, más que la pantalla), un arrastre dentro del PDF que no tiene nada que mover (el
+  // póster cabe entero) o que llega a un borde pasa a la página y "se mueve la pantalla completa".
+  // Se recalcula cuando cambia el alto de lo que está arriba (el banner se encoge tras el primer toque).
+  const hasPoster = !loading && !!poster;
+  useEffect(() => {
+    if (!isTotem || !hasPoster) {
+      setTotemViewerHeight(null);
+      return;
+    }
+    const html = document.documentElement;
+    const previous = { overflow: html.style.overflow, overscroll: html.style.overscrollBehavior };
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    window.scrollTo(0, 0);
+    const update = () => {
+      const viewer = viewerRef.current;
+      if (!viewer) return;
+      const top = viewer.getBoundingClientRect().top;
+      setTotemViewerHeight(Math.max(400, Math.floor(window.innerHeight - top - TOTEM_VIEWER_BOTTOM_GAP)));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+      html.style.overflow = previous.overflow;
+      html.style.overscrollBehavior = previous.overscroll;
+    };
+  }, [isTotem, hasPoster]);
+
   if (loading) {
     return (
       <Container
@@ -261,6 +302,8 @@ const PosterDetail = () => {
       <div
         ref={viewerRef}
         className={isOverlay ? "posterViewer posterViewer--overlay" : "posterViewer"}
+        // La capa de pantalla completa (overlay) y la pantalla completa nativa tienen su propio alto.
+        style={totemViewerHeight && !isOverlay ? { height: totemViewerHeight } : undefined}
       >
         <Group className="posterViewerToolbar" justify="flex-end" gap="xs">
           {/* El href es el respaldo (clic con modificador, o si handleDownload no puede leer el archivo).
@@ -328,6 +371,7 @@ const PosterDetail = () => {
             label={t("posterDetail.idNumberLabel")}
             placeholder={t("posterDetail.idNumberPlaceholder")}
             size="lg"
+            inputMode="numeric"
             value={idNumber}
             onChange={(e) => setIdNumber(e.currentTarget.value)}
           />

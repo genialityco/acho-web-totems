@@ -15,7 +15,7 @@ const es = {
       semantic: "Busca por significado, aunque no uses las palabras exactas del documento.",
       both: "Combina resultados exactos y por significado.",
     },
-    categoryViewing: "Estas viendo {{name}}",
+    categoryViewing: "Estás viendo {{name}}",
     categoryView: "Ver {{name}}",
     selectFiltersPrompt: "Selecciona {{filters}} para ver los pósters.",
     andOr: " y/o ",
@@ -80,6 +80,15 @@ const es = {
   },
   notFoundPage: {
     message: "No encontramos esta página. Ingresa desde el enlace de tu evento.",
+  },
+  touchKeyboard: {
+    label: "Teclado en pantalla",
+    space: "Espacio",
+    backspace: "Borrar",
+    clear: "Limpiar",
+    done: "Listo",
+    letters: "ABC",
+    numbers: "123",
   },
   screensaver: {
     tapToContinue: "Toca para continuar",

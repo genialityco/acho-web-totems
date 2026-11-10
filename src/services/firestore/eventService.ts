@@ -28,6 +28,13 @@ export interface EventInfo {
   // Botón "¿Por qué este resultado?" en los resultados de la búsqueda conceptual (ver
   // MatchExplanation); apagado por defecto porque cada explicación es una llamada a Gemini.
   searchExplanationsEnabled: boolean;
+  // Teclado en pantalla propio en los tótems (ver TouchKeyboard). Activado por defecto: un evento sin
+  // el campo lo tiene. Desactivado, los campos de texto se comportan como en cualquier navegador
+  // (en Windows, el teclado táctil del sistema si está configurado).
+  touchKeyboardEnabled: boolean;
+  // Estilo visual del sitio público: "glass" (oscuro con vidrio y bordes luminosos, por defecto: un
+  // evento sin el campo lo usa) o "classic" (el claro anterior). Ver PublicShell/PosterList.
+  publicStyle: PublicStyle;
   // "registered" (default): castVote exige que la cédula exista y esté activa en voters/{idNumber}.
   // "open": cualquier cédula puede votar (una sola vez, votes/{idNumber} sigue siendo la clave de
   // deduplicación) sin necesidad de haber sido precargada en "Votantes".
@@ -43,6 +50,8 @@ export interface EventInfo {
 }
 
 export type VoteMode = "registered" | "open" | "anonymous";
+
+export type PublicStyle = "glass" | "classic";
 
 const VOTE_MODES: readonly VoteMode[] = ["registered", "open", "anonymous"];
 
@@ -70,6 +79,8 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
     DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS
   ),
   searchExplanationsEnabled: data.searchExplanationsEnabled === true,
+  touchKeyboardEnabled: data.touchKeyboardEnabled !== false,
+  publicStyle: data.publicStyle === "classic" ? "classic" : "glass",
   voteMode: toVoteMode(data),
   categoriesLabel: typeof data.categoriesLabel === "string" && data.categoriesLabel.trim() ? data.categoriesLabel.trim() : null,
   studyTypes: Array.isArray(data.studyTypes)
@@ -125,6 +136,8 @@ export const updateEvent = (
       | "screensaverIdleSeconds"
       | "screensaverPhotoDurationSeconds"
       | "searchExplanationsEnabled"
+      | "touchKeyboardEnabled"
+      | "publicStyle"
       | "voteMode"
       | "categoriesLabel"
       | "studyTypes"

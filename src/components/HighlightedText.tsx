@@ -1,11 +1,12 @@
 import { ReactNode } from "react";
 import { Mark } from "@mantine/core";
-import { findMatchRanges } from "../utils/text";
+import { findWordRanges } from "../utils/text";
 
-// Muestra `text` marcando las coincidencias de `term` (sin distinguir mayúsculas ni tildes,
-// igual que la búsqueda exacta). Sin término o sin coincidencias, devuelve el texto tal cual.
+// Muestra `text` marcando cada palabra significativa de `term` (sin distinguir mayúsculas ni tildes,
+// igual que la búsqueda exacta, que en título y autores coincide por palabras). Sin término o sin
+// coincidencias, devuelve el texto tal cual.
 export const HighlightedText = ({ text, term }: { text: string; term: string }) => {
-  const ranges = findMatchRanges(text, term);
+  const ranges = findWordRanges(text, term);
   if (ranges.length === 0) return <>{text}</>;
 
   const parts: ReactNode[] = [];

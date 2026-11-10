@@ -1,0 +1,106 @@
+/* Estilo "glass" del sitio público (event.publicStyle, por defecto): oscuro, superficies de vidrio
+   traslúcidas y bordes luminosos. Todo queda dentro de .gpGlass (el contenedor de PublicShell), que
+   además lleva data-mantine-color-scheme="dark": las reglas oscuras de los componentes de Mantine se
+   activan solo aquí, sin tocar el panel de administración. Las variables que Mantine define solo en
+   :root para el modo oscuro se redefinen acá, con valores traslúcidos. Los modales y tooltips se
+   dibujan fuera (portal) y quedan con el estilo claro. */
+.gpGlass {
+  --gp-surface: rgba(14, 18, 25, 0.72);
+  --gp-surface-strong: rgba(14, 18, 25, 0.86);
+  --gp-border: rgba(255, 255, 255, 0.12);
+
+  --mantine-color-body: var(--gp-surface);
+  --mantine-color-text: #e9ecef;
+  --mantine-color-dimmed: #a7b0ba;
+  --mantine-color-placeholder: #8c96a2;
+  --mantine-color-anchor: var(--mantine-color-blue-4);
+  --mantine-color-default: var(--gp-surface);
+  --mantine-color-default-hover: rgba(40, 47, 58, 0.85);
+  --mantine-color-default-color: #f1f3f5;
+  --mantine-color-default-border: var(--gp-border);
+  color: var(--mantine-color-text);
+}
+
+/* Campos de texto (buscador y los del modal de búsqueda avanzada: texto, número, selección múltiple) */
+.gpGlass .mantine-Input-input {
+  background-color: var(--gp-surface-strong);
+  border-color: var(--gp-border);
+  color: #f1f3f5;
+  backdrop-filter: blur(10px);
+}
+.gpGlass .mantine-Input-input:focus,
+.gpGlass .mantine-Input-input:focus-within {
+  border-color: var(--mantine-color-cyan-5);
+  box-shadow: 0 0 0 1px var(--mantine-color-cyan-5), 0 0 18px rgba(34, 184, 207, 0.35);
+}
+
+/* Selectores segmentados (modo de búsqueda, idioma) */
+.gpGlass .mantine-SegmentedControl-root {
+  background-color: var(--gp-surface-strong);
+  border: 1px solid var(--gp-border);
+  backdrop-filter: blur(10px);
+}
+.gpGlass .mantine-SegmentedControl-indicator {
+  background-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+.gpGlass .mantine-SegmentedControl-label {
+  color: #c1c8d0;
+}
+.gpGlass .mantine-SegmentedControl-label[data-active] {
+  color: #fff;
+}
+
+/* Tarjetas de póster: el hover realza el borde luminoso en vez de la sombra clara. */
+.gpGlass .posterCard:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+/* Paginación */
+.gpGlass .mantine-Pagination-control {
+  backdrop-filter: blur(10px);
+}
+
+/* Barra del visor de pósters (PosterDetail): oscura, como el resto. El PDF en sí es del visor externo. */
+.gpGlass .posterViewer {
+  background-color: rgba(14, 18, 25, 0.92);
+  border: 1px solid var(--gp-border);
+}
+.gpGlass .posterViewerToolbar {
+  background-color: rgba(14, 18, 25, 0.92);
+  border-bottom-color: var(--gp-border);
+}
+
+/* Modal de búsqueda avanzada (AdvancedSearchModal, que en "glass" se dibuja dentro de .gpGlass) */
+.gpGlass .gpGlassModal .mantine-Modal-content {
+  background-color: rgba(14, 18, 25, 0.94);
+  border: 1px solid rgba(34, 184, 207, 0.35);
+  box-shadow: 0 0 40px rgba(34, 184, 207, 0.18), 0 20px 50px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+}
+.gpGlass .gpGlassModal .mantine-Modal-header {
+  background-color: transparent;
+}
+.gpGlass .gpGlassModal .mantine-Modal-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--mantine-font-size-lg);
+}
+.gpGlass .gpGlassModal .mantine-InputWrapper-label {
+  color: #dee2e6;
+}
+
+/* Listas desplegables (selección múltiple del modal) */
+/* El dropdown lleva la clase del componente que lo abre (MultiSelect/Select), no la de Combobox. */
+.gpGlass .mantine-MultiSelect-dropdown,
+.gpGlass .mantine-Select-dropdown,
+.gpGlass .mantine-Combobox-dropdown {
+  background-color: rgba(14, 18, 25, 0.97);
+  border-color: rgba(34, 184, 207, 0.35);
+  backdrop-filter: blur(14px);
+}
+.gpGlass .mantine-MultiSelect-option:hover,
+.gpGlass .mantine-Select-option:hover {
+  background-color: rgba(34, 184, 207, 0.16);
+}

@@ -4,6 +4,28 @@ import { useTranslation } from "react-i18next";
 import { useIdleTimer } from "../hooks/useIdleTimer";
 import { ScreensaverItem } from "../services/firestore/screensaverService";
 
+// Margen para que llegue el click del toque que despierta el protector (un toque largo tarda más).
+const SWALLOW_CLICK_MS = 1000;
+
+// El protector se cierra en el touchstart/mousedown (useIdleTimer), así que el click de ese mismo
+// toque, que llega al levantar el dedo, ya cae sobre lo que hay debajo (ej. una tarjeta de póster) y
+// lo abre sin querer. stopPropagation en el overlay no alcanza: cuando llega el click el overlay ya no
+// existe. Se descarta ese click en la fase de captura de window, antes de que llegue a React o a un
+// enlace; si no llega (ej. el toque fue un arrastre), el listener se retira solo.
+function swallowNextClick() {
+  const swallow = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    cleanup();
+  };
+  const timer = setTimeout(() => cleanup(), SWALLOW_CLICK_MS);
+  const cleanup = () => {
+    clearTimeout(timer);
+    window.removeEventListener("click", swallow, true);
+  };
+  window.addEventListener("click", swallow, true);
+}
+
 export default function ScreensaverOverlay({
   items,
   idleSeconds,
@@ -30,6 +52,12 @@ export default function ScreensaverOverlay({
     if (isIdle && document.fullscreenElement) void document.exitFullscreen();
   }, [isIdle]);
 
+  // El siguiente visitante no debe encontrar un campo enfocado (y, en los tótems, el teclado en
+  // pantalla abierto) que dejó el anterior.
+  useEffect(() => {
+    if (isIdle && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  }, [isIdle]);
+
   const current = items[index % items.length];
 
   // Las fotos avanzan solas tras photoDurationSeconds; los videos avanzan con onEnded.
@@ -45,6 +73,9 @@ export default function ScreensaverOverlay({
 
   return (
     <div
+      // pointerdown llega al overlay antes que el touchstart/mousedown que lo cierra (useIdleTimer
+      // escucha en window, en burbujeo), así que el descarte queda listo antes de que llegue el click.
+      onPointerDown={swallowNextClick}
       style={{
         position: "fixed",
         inset: 0,

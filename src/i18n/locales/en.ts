@@ -84,6 +84,15 @@ const en: typeof es = {
   notFoundPage: {
     message: "We couldn't find this page. Enter through your event's link.",
   },
+  touchKeyboard: {
+    label: "On-screen keyboard",
+    space: "Space",
+    backspace: "Delete",
+    clear: "Clear",
+    done: "Done",
+    letters: "ABC",
+    numbers: "123",
+  },
   screensaver: {
     tapToContinue: "Tap to continue",
   },

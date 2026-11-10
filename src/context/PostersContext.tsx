@@ -7,7 +7,14 @@ import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
 import { hasEmbedding, subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
 import { embedSearchQuery } from "../services/firestore/searchQueryService";
-import { buildSnippet, normalizeSearchText, normalizeText, SearchSnippet } from "../utils/text";
+import {
+  buildSnippet,
+  containsAllWords,
+  normalizeSearchText,
+  normalizeText,
+  searchWords,
+  SearchSnippet,
+} from "../utils/text";
 import { cosineSimilarity } from "../utils/vectorMath";
 import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { trackEvent } from "../services/analytics";
@@ -21,8 +28,10 @@ import {
   SearchMode,
 } from "./usePosters";
 
-// Umbral mínimo de caracteres antes de pedir un embedding de la búsqueda.
-const SEMANTIC_MIN_TERM_LENGTH = 3;
+// Caracteres mínimos (sin contar espacios de los extremos) para que la búsqueda se aplique, en
+// cualquier modo: con 1–2 letras casi todo coincide, la lista salta con cada tecla y en modo
+// conceptual se pediría un embedding por nada. Por debajo, es como si no hubiera búsqueda.
+const MIN_SEARCH_LENGTH = 3;
 const SEMANTIC_DEBOUNCE_MS = 400;
 // Espera a que la persona deje de teclear antes de mandar el evento de analítica, para no
 // mandar uno por cada letra escrita.
@@ -35,12 +44,16 @@ const SEARCH_TRACK_DEBOUNCE_MS = 800;
 // (adapta el corte: las consultas cortas puntúan más bajo que las largas).
 const SEMANTIC_THRESHOLD = 0.62;
 const SEMANTIC_RELATIVE_WINDOW = 0.06;
-// Puntajes de búsqueda exacta (título > autor > cuerpo del PDF) y el bonus que
-// garantiza, en modo "Ambas", que un match exacto siempre supere a uno solo conceptual.
-const EXACT_TITLE_SCORE = 3;
-const EXACT_AUTHOR_SCORE = 2;
-const EXACT_BODY_SCORE = 1;
-const EXACT_MATCH_BONUS = 100;
+// Dónde coincide la búsqueda exacta: título > autor > cuerpo del PDF (0 = en ninguno). En modo
+// "Exacta" este nivel es el orden.
+const EXACT_TITLE = 3;
+const EXACT_AUTHOR = 2;
+const EXACT_BODY = 1;
+// En modo "Ambas" el orden es la afinidad conceptual (coseno, ~0.5–0.8) más un bonus según dónde
+// coincide la búsqueda exacta. Así, dentro de cada tipo de coincidencia van primero los más afines
+// (no por orden alfabético), y una mención de pasada en el cuerpo del PDF no le gana siempre a un
+// póster cuyo tema es la consulta. Calibrado con datos reales de oncología (ver scripts/search-eval).
+const EXACT_BONUS: Record<number, number> = { [EXACT_TITLE]: 0.08, [EXACT_AUTHOR]: 0.08, [EXACT_BODY]: 0.03 };
 
 export const PostersProvider: React.FC<{
   eventSlug: string;
@@ -56,7 +69,11 @@ export const PostersProvider: React.FC<{
   const [loadFailed, setLoadFailed] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchMode, setSearchMode] = useState<SearchMode>("exact");
+  // Búsqueda que de verdad se aplica: el texto del campo solo desde MIN_SEARCH_LENGTH caracteres.
+  const activeSearchTerm = normalizeText(searchTerm).length >= MIN_SEARCH_LENGTH ? searchTerm : "";
+  // "Ambas" por defecto: lo exacto cubre siglas y nombres propios ("CMTN"), que lo conceptual pierde,
+  // y lo conceptual encuentra lo que no está escrito literalmente.
+  const [searchMode, setSearchMode] = useState<SearchMode>("both");
   const [page, setPage] = useState(1);
   // Por campo: opciones elegidas en su filtro (vacío = no filtra por ese campo), y si el visitante ya tocó ese
   // filtro (revela el siguiente, si tiene revealAfterPrevious).
@@ -149,7 +166,7 @@ export const PostersProvider: React.FC<{
 
   useEffect(() => {
     const normalizedTerm = normalizeText(searchTerm);
-    if (searchMode === "exact" || normalizedTerm.length < SEMANTIC_MIN_TERM_LENGTH) {
+    if (searchMode === "exact" || normalizedTerm.length < MIN_SEARCH_LENGTH) {
       debouncedEmbedQuery.cancel();
       embedRequestIdRef.current += 1;
       lastEmbeddedTermRef.current = null;
@@ -215,14 +232,16 @@ export const PostersProvider: React.FC<{
   );
 
   const { filteredPosters, filterCounts, semanticOnlyIds } = useMemo(() => {
-    const term = normalizeSearchText(searchTerm);
+    const term = normalizeSearchText(activeSearchTerm);
+    const words = searchWords(activeSearchTerm);
 
-    // Título > autor > cuerpo del PDF (solo si ya está indexado). Devuelve 0
-    // si no hay match exacto en ningún campo.
+    // Título > autor > cuerpo del PDF (solo si ya está indexado); 0 si no hay match exacto. Título y
+    // autor coinciden si contienen todas las palabras significativas, en cualquier orden; en el cuerpo
+    // (hasta 20k caracteres) se exige la frase completa, porque palabras sueltas aparecen en casi todos.
     const exactScore = (paper: Paper): number => {
-      if (normalizeSearchText(paper.title).includes(term)) return EXACT_TITLE_SCORE;
-      if (paper.authors.some((author) => normalizeSearchText(author).includes(term))) return EXACT_AUTHOR_SCORE;
-      if (bodyByPaperId.get(paper.id)?.folded.includes(term)) return EXACT_BODY_SCORE;
+      if (containsAllWords(paper.title, words)) return EXACT_TITLE;
+      if (paper.authors.some((author) => containsAllWords(author, words))) return EXACT_AUTHOR;
+      if (bodyByPaperId.get(paper.id)?.folded.includes(term)) return EXACT_BODY;
       return 0;
     };
 
@@ -257,10 +276,11 @@ export const PostersProvider: React.FC<{
         return score > 0 ? score : null;
       }
       if (searchMode === "semantic") return semanticScore(paper);
-      // "both": un match exacto siempre gana (bonus fijo por encima del máximo
-      // posible de similitud coseno), si no hay exacto se prueba lo conceptual.
-      const eScore = exactScore(paper);
-      if (eScore > 0) return EXACT_MATCH_BONUS + eScore;
+      // "both": un match exacto siempre entra (aunque su afinidad no llegue al corte) y suma su bonus
+      // a la afinidad; sin afinidad (paper sin embedding, o la de la consulta aún en vuelo) se usa el
+      // umbral como valor neutro. Sin match exacto, entra solo si llega al corte conceptual.
+      const level = exactScore(paper);
+      if (level > 0) return (semanticScores.get(paper.id) ?? SEMANTIC_THRESHOLD) + EXACT_BONUS[level];
       return semanticScore(paper);
     };
 
@@ -328,7 +348,7 @@ export const PostersProvider: React.FC<{
     };
   }, [
     posters,
-    searchTerm,
+    activeSearchTerm,
     visibleFilterFields,
     activeSelections,
     advancedSearch,
@@ -350,12 +370,12 @@ export const PostersProvider: React.FC<{
   useEffect(() => () => debouncedTrackSearch.cancel(), [debouncedTrackSearch]);
 
   useEffect(() => {
-    if (!normalizeText(searchTerm) || semanticSearchLoading) {
+    if (!activeSearchTerm || semanticSearchLoading) {
       debouncedTrackSearch.cancel();
       return;
     }
     debouncedTrackSearch(searchMode, filteredPosters.length > 0);
-  }, [searchTerm, searchMode, filteredPosters.length, semanticSearchLoading, debouncedTrackSearch]);
+  }, [activeSearchTerm, searchMode, filteredPosters.length, semanticSearchLoading, debouncedTrackSearch]);
 
   const filters: PublicFilter[] = useMemo(
     () =>
@@ -395,7 +415,7 @@ export const PostersProvider: React.FC<{
   const selectionRequired =
     filters.length > 0 &&
     activeSelections.length === 0 &&
-    !normalizeText(searchTerm) &&
+    !activeSearchTerm &&
     countAdvancedCriteria(advancedSearch) === 0;
 
   // El primer filtro de tarjetas de colores da el color de cada póster (borde y etiqueta).
@@ -406,16 +426,18 @@ export const PostersProvider: React.FC<{
     return colorField.options.find((o) => ids.includes(o.id) && o.color)?.color ?? null;
   };
 
-  const highlightTerm = searchMode === "semantic" ? "" : searchTerm;
+  const highlightTerm = searchMode === "semantic" ? "" : activeSearchTerm;
 
   const getBodySnippet = (paperId: string): SearchSnippet | null => {
     const term = normalizeSearchText(highlightTerm);
     if (!term) return null;
     const paper = posters.find((p) => p.id === paperId);
     if (!paper) return null;
-    // Título y autores ya se resaltan en la tarjeta; el fragmento solo hace falta si el match está en el cuerpo.
-    if (normalizeSearchText(paper.title).includes(term)) return null;
-    if (paper.authors.some((author) => normalizeSearchText(author).includes(term))) return null;
+    // Título y autores ya se resaltan en la tarjeta; el fragmento solo hace falta si el match está en el
+    // cuerpo (mismo criterio que exactScore).
+    const words = searchWords(highlightTerm);
+    if (containsAllWords(paper.title, words)) return null;
+    if (paper.authors.some((author) => containsAllWords(author, words))) return null;
     const body = bodyByPaperId.get(paperId);
     return body ? buildSnippet(body.text, term) : null;
   };
@@ -439,6 +461,7 @@ export const PostersProvider: React.FC<{
         currentPagePosters,
         screensaverItems,
         searchTerm,
+        activeSearchTerm,
         setSearchTerm,
         searchMode,
         setSearchMode,

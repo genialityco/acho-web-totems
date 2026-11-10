@@ -25,7 +25,7 @@ import {
 import { IconArrowLeft, IconExternalLink, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react";
 import { AdminEventProvider } from "../../context/AdminEventContext";
 import { useAdminEvent } from "../../context/useAdminEvent";
-import { EventInfo, updateEvent, VoteMode } from "../../services/firestore/eventService";
+import { EventInfo, PublicStyle, updateEvent, VoteMode } from "../../services/firestore/eventService";
 import { isListField } from "../../services/firestore/fieldService";
 import { errorMessage } from "../../services/firestore/batch";
 import { deleteEventImage, MAX_EVENT_IMAGE_BYTES, uploadEventImage } from "../../services/storageService";
@@ -290,6 +290,26 @@ function EventFrame() {
     }
   };
 
+  const updatePublicStyle = async (publicStyle: PublicStyle) => {
+    setError(null);
+    try {
+      await updateEvent(eventSlug, { publicStyle });
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cambiar el estilo del sitio público.");
+    }
+  };
+
+  const toggleTouchKeyboard = async (enabled: boolean) => {
+    setError(null);
+    try {
+      await updateEvent(eventSlug, { touchKeyboardEnabled: enabled });
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cambiar el estado del teclado en pantalla.");
+    }
+  };
+
   return (
     <Stack gap="md">
       {backLink}
@@ -349,6 +369,33 @@ function EventFrame() {
             />
             <Text size="xs" c="dimmed" ta="right" maw={320}>
               Muestra "¿Por qué este resultado?" en los resultados de la búsqueda conceptual. Cada explicación usa IA (Gemini).
+            </Text>
+          </Stack>
+          <Stack gap={2} align="flex-end">
+            <SegmentedControl
+              size="xs"
+              value={event.publicStyle}
+              onChange={(value) => void updatePublicStyle(value as PublicStyle)}
+              data={[
+                { label: "Oscuro (nuevo)", value: "glass" },
+                { label: "Clásico", value: "classic" },
+              ]}
+            />
+            <Text size="xs" c="dimmed" ta="right" maw={320}>
+              Estilo del sitio público. Oscuro: fondo oscurecido, tarjetas de vidrio y bordes luminosos en el color de
+              cada opción. Clásico: el estilo claro anterior.
+            </Text>
+          </Stack>
+          <Stack gap={2} align="flex-end">
+            <Switch
+              size="md"
+              checked={event.touchKeyboardEnabled}
+              onChange={(e) => void toggleTouchKeyboard(e.currentTarget.checked)}
+              label={event.touchKeyboardEnabled ? "Teclado en pantalla activado" : "Teclado en pantalla desactivado"}
+            />
+            <Text size="xs" c="dimmed" ta="right" maw={320}>
+              Solo en tótems verticales: muestra un teclado propio al tocar un campo de texto. Desactivado, se usa el
+              teclado del sistema (en Windows, el teclado táctil si está configurado).
             </Text>
           </Stack>
         </Stack>

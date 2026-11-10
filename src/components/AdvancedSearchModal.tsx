@@ -9,7 +9,11 @@ import { isListField } from "../services/firestore/fieldService";
 // aplican al presionar "Buscar"; "Limpiar" vacía el formulario sin cerrarlo.
 export function AdvancedSearchModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const { t } = useTranslation();
-  const { fields, advancedSearch, setAdvancedSearch, selectedOptions, setFieldSelection } = usePosters();
+  const { event, fields, advancedSearch, setAdvancedSearch, selectedOptions, setFieldSelection } = usePosters();
+  // Estilo "glass" del evento: el modal y las listas desplegables se dibujan dentro del contenedor del sitio
+  // público (.gpGlass, ver PublicGlass.css) y no al final de <body>, para heredar el modo oscuro y sus estilos.
+  const glass = event?.publicStyle !== "classic";
+  const portalProps = glass ? { target: ".gpGlass" } : undefined;
   const [draft, setDraft] = useState<AdvancedSearch>(advancedSearch);
   const [draftOptions, setDraftOptions] = useState<Record<string, string[]>>(selectedOptions);
 
@@ -44,7 +48,16 @@ export function AdvancedSearchModal({ opened, onClose }: { opened: boolean; onCl
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t("posterList.advancedSearch.title")} size="lg" centered>
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={t("posterList.advancedSearch.title")}
+      size="lg"
+      centered
+      portalProps={portalProps}
+      className={glass ? "gpGlassModal" : undefined}
+      overlayProps={glass ? { backgroundOpacity: 0.4, blur: 2 } : undefined}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -76,6 +89,7 @@ export function AdvancedSearchModal({ opened, onClose }: { opened: boolean; onCl
               onChange={(value) => setDraftOptions({ ...draftOptions, [field.id]: value })}
               clearable
               searchable
+              comboboxProps={{ portalProps }}
             />
           ))}
           {numberFields.map((field) => (
@@ -108,10 +122,28 @@ export function AdvancedSearchModal({ opened, onClose }: { opened: boolean; onCl
             onChange={(e) => setDraft({ ...draft, body: e.currentTarget.value })}
           />
           <Group justify="space-between">
-            <Button variant="subtle" onClick={clear}>
+            <Button variant="subtle" color={glass ? "gray" : undefined} onClick={clear}>
               {t("posterList.advancedSearch.clear")}
             </Button>
-            <Button type="submit">{t("posterList.advancedSearch.apply")}</Button>
+            <Button
+              type="submit"
+              // En "glass", borde luminoso como los botones "Ver póster" de las tarjetas.
+              variant={glass ? "default" : "filled"}
+              styles={
+                glass
+                  ? {
+                      root: {
+                        backgroundColor: "color-mix(in srgb, var(--mantine-color-cyan-6) 14%, transparent)",
+                        border: "2px solid var(--mantine-color-cyan-5)",
+                        color: "#f1f3f5",
+                        boxShadow: "0 0 16px color-mix(in srgb, var(--mantine-color-cyan-5) 50%, transparent)",
+                      },
+                    }
+                  : undefined
+              }
+            >
+              {t("posterList.advancedSearch.apply")}
+            </Button>
           </Group>
         </Stack>
       </form>

@@ -352,6 +352,8 @@ export default function AdminPapers() {
   const [reindexError, setReindexError] = useState<string | null>(null);
   const [reindexResult, setReindexResult] = useState<string | null>(null);
   const [reindexProgress, setReindexProgress] = useState<string | null>(null);
+  const [reindexingFailed, setReindexingFailed] = useState(false);
+  const reindexBusy = reindexingAll || reindexingFailed;
   const [merging, setMerging] = useState<Paper | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
   const [mergeSaving, setMergeSaving] = useState(false);
@@ -377,6 +379,59 @@ export default function AdminPapers() {
     });
     return { missing: papers.length - withEmbedding, partial };
   }, [papers, searchIndexByPaperId]);
+
+  // Papers cuyo indexado vale la pena reintentar: sin índice, en error (o "No compatible" de la versión
+  // anterior del índice), o cuyo último intento falló (lastError: se conservó el índice anterior, o el PDF
+  // no se pudo descargar). Los PDF escaneados ("Sin texto del PDF" sin lastError) no: reintentar no cambia nada.
+  const failedPaperIds = useMemo(
+    () =>
+      papers
+        .filter((paper) => {
+          const index = searchIndexByPaperId.get(paper.id);
+          return (
+            !index ||
+            index.status === "error" ||
+            index.status === "unsupported" ||
+            index.status === "pending" ||
+            !!index.lastError
+          );
+        })
+        .map((paper) => paper.id),
+    [papers, searchIndexByPaperId]
+  );
+
+  // Reintenta solo los papers con problemas, de a uno: así cada llamada pasa por el presupuesto de tokens
+  // de la función (la cuota gratuita de Gemini es por minuto) y un fallo no frena a los demás.
+  const handleReindexFailed = async () => {
+    const ids = [...failedPaperIds];
+    setReindexingFailed(true);
+    setReindexError(null);
+    setReindexResult(null);
+    const summary: Record<string, number> = {};
+    let callFailures = 0;
+    try {
+      for (let i = 0; i < ids.length; i += 1) {
+        setReindexProgress(`${i} de ${ids.length}`);
+        try {
+          const result = await reindexPaperSearch(eventSlug, ids[i]);
+          Object.entries(result.summary ?? {}).forEach(([key, n]) => (summary[key] = (summary[key] ?? 0) + n));
+        } catch (e) {
+          console.error(`Error reindexando ${ids[i]}:`, e);
+          callFailures += 1;
+        }
+      }
+      const parts = REINDEX_OUTCOME_LABELS.filter(([key]) => summary[key]).map(
+        ([key, label]) => `${summary[key]} ${label}`
+      );
+      setReindexResult(
+        `Reintentados: ${ids.length} papers con error${parts.length ? ` (${parts.join(", ")})` : ""}.` +
+          (callFailures ? ` ${callFailures} no se pudieron reintentar (revisa la conexión y vuelve a intentar).` : "")
+      );
+    } finally {
+      setReindexingFailed(false);
+      setReindexProgress(null);
+    }
+  };
 
   const handleRetryIndex = async (paperId: string) => {
     setRetryingPaperId(paperId);
@@ -528,6 +583,25 @@ export default function AdminPapers() {
           </Button>
           <Tooltip
             label={
+              reindexingFailed
+                ? "Va de a un paper, al ritmo que permite la cuota de Gemini; no cierres esta página"
+                : "Reintenta solo los papers sin índice, con error o cuyo último reindexado falló"
+            }
+          >
+            <Button
+              variant="light"
+              color="orange"
+              leftSection={<IconRefresh size={16} />}
+              disabled={reindexBusy || failedPaperIds.length === 0}
+              onClick={handleReindexFailed}
+            >
+              {reindexingFailed
+                ? `Reintentando…${reindexProgress ? ` ${reindexProgress}` : ""}`
+                : `Reindexar con error (${failedPaperIds.length})`}
+            </Button>
+          </Tooltip>
+          <Tooltip
+            label={
               reindexingAll
                 ? "Va al ritmo que permite la cuota de Gemini (~10 papers por minuto en el plan gratuito); no cierres esta página"
                 : "Vuelve a extraer el texto y el índice de búsqueda de todos los papers del evento"
@@ -536,7 +610,7 @@ export default function AdminPapers() {
             <Button
               variant="light"
               leftSection={<IconRefresh size={16} />}
-              disabled={reindexingAll}
+              disabled={reindexBusy}
               onClick={handleReindexAll}
             >
               {reindexingAll ? `Reindexando…${reindexProgress ? ` ${reindexProgress}` : ""}` : "Reindexar todo"}
