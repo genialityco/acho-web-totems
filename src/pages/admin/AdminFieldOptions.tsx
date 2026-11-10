@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Alert,
   Badge,
+  Box,
   Button,
   Group,
   Modal,
@@ -48,6 +49,7 @@ function OptionFormModal({
   const [order, setOrder] = useState<number>(nextOrder);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedColor = OPTION_COLORS.find((optionColor) => optionColor.value === color)?.value;
 
   useEffect(() => {
     setName(option?.name ?? "");
@@ -78,6 +80,33 @@ function OptionFormModal({
           data={OPTION_COLORS}
           value={color}
           onChange={setColor}
+          leftSection={
+            selectedColor ? (
+              <Box
+                w={14}
+                h={14}
+                ml={4}
+                style={{
+                  borderRadius: "50%",
+                  backgroundColor: `var(--mantine-color-${selectedColor}-6)`,
+                }}
+              />
+            ) : undefined
+          }
+          renderOption={({ option }) => (
+            <Group gap="xs">
+              <Box
+                w={14}
+                h={14}
+                style={{
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  backgroundColor: `var(--mantine-color-${option.value}-6)`,
+                }}
+              />
+              <span>{option.label}</span>
+            </Group>
+          )}
           clearable
           placeholder="Sin color"
         />

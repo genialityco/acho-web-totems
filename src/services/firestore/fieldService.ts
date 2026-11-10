@@ -68,7 +68,7 @@ export const OPTION_COLORS = [
   { value: "green", label: "Verde" },
   { value: "blue", label: "Azul" },
   { value: "red", label: "Rojo" },
-  { value: "purple", label: "Morado" },
+  { value: "violet", label: "Morado" },
   { value: "orange", label: "Naranja" },
   { value: "teal", label: "Turquesa" },
   { value: "pink", label: "Rosado" },
@@ -92,7 +92,7 @@ const toOption = (raw: unknown): FieldOption | null => {
   return {
     id: data.id,
     name: data.name,
-    color: typeof data.color === "string" && data.color ? data.color : null,
+    color: data.color === "purple" ? "violet" : typeof data.color === "string" && data.color ? data.color : null,
     order: typeof data.order === "number" ? data.order : 0,
   };
 };

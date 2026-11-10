@@ -49,6 +49,9 @@ const GLASS_BUTTON_PALETTE = ["red", "violet", "teal", "gray", "orange", "cyan",
 const glassBadgeStyles = (color?: string | null) => ({
   root: { backgroundColor: tint(color, 22), color: lightColorVar(color), border: `1px solid ${tint(color, 45)}` },
 });
+const solidGlassBadgeStyles = (color: string) => ({
+  root: { backgroundColor: colorVar(color), color: "#fff", border: `1px solid ${colorVar(color)}` },
+});
 
 export const PosterList = () => {
   const { t } = useTranslation();
@@ -242,8 +245,7 @@ export const PosterList = () => {
       selectedOptions(field, poster.attributes[field.id]).map((option) => ({
         key: `${field.id}:${option.id}`,
         name: option.name,
-        // Solo los filtros de tarjetas de colores pintan sus etiquetas.
-        color: field.filter === "cards" && option.color ? option.color : null,
+        color: option.color,
       }))
     );
     const valueBadges = cardValueFields
@@ -292,9 +294,15 @@ export const PosterList = () => {
                 <Badge
                   key={badge.key}
                   color={badge.color ?? "gray"}
-                  variant={badge.color ? "light" : "outline"}
+                  variant={badge.color ? "filled" : "outline"}
                   size={isTotem ? "lg" : "sm"}
-                  styles={glass ? glassBadgeStyles(badge.color ?? "gray") : undefined}
+                  styles={
+                    glass
+                      ? badge.color
+                        ? solidGlassBadgeStyles(badge.color)
+                        : glassBadgeStyles("gray")
+                      : undefined
+                  }
                 >
                   {badge.name}
                 </Badge>
