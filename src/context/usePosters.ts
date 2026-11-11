@@ -15,7 +15,18 @@ export type PublicFilter = {
   selected: string[];
 };
 
-export type SearchMode = "exact" | "semantic" | "both";
+// "ask": el visitante escribe una pregunta y la IA (askPosters) responde y agrupa los pósters por tema.
+// Solo existe si el admin activó las preguntas del evento (event.searchQuestionsEnabled).
+export type SearchMode = "exact" | "semantic" | "both" | "ask";
+
+export type AskGroup = { title: string; description: string; papers: Paper[] };
+
+// Estado del modo "Preguntar". "done" con answer null = no hubo pósters candidatos (no se llamó a la IA).
+export type AskState =
+  | { status: "idle" }
+  | { status: "loading"; question: string }
+  | { status: "done"; question: string; answer: string | null; groups: AskGroup[] }
+  | { status: "error" | "disabled"; question: string };
 
 // Criterios de la búsqueda avanzada (AdvancedSearchModal). Se combinan entre sí y con la búsqueda
 // normal y los filtros. Los campos de lista no van aquí: comparten la selección de los filtros.
@@ -80,11 +91,12 @@ export type PostersContextType = {
   setFieldSelection: (fieldId: string, optionIds: string[]) => void;
   advancedSearch: AdvancedSearch;
   setAdvancedSearch: (search: AdvancedSearch) => void;
-  // true si el evento tiene filtros, el visitante no ha elegido nada en ninguno y no está buscando:
-  // en vez de listar todos los pósters se le pide elegir (PosterList).
-  selectionRequired: boolean;
   // Color del póster: el de su opción en el primer filtro de tarjetas de colores (null si no tiene).
   getPaperColor: (paper: Paper) => string | null;
+  // Modo "Preguntar": disponible si el admin lo activó; askQuestion pregunta con el texto del buscador.
+  canAsk: boolean;
+  askState: AskState;
+  askQuestion: (language: string) => void;
 };
 
 export const PostersContext = createContext<PostersContextType | undefined>(undefined);

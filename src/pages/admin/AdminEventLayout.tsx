@@ -271,6 +271,16 @@ function EventFrame() {
     anonymous: "No se pide ningún dato: el voto queda asociado al navegador (una vez por dispositivo/navegador).",
   };
 
+  const toggleSearchQuestions = async (enabled: boolean) => {
+    setError(null);
+    try {
+      await updateEvent(eventSlug, { searchQuestionsEnabled: enabled });
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cambiar el estado de las preguntas con IA.");
+    }
+  };
+
   const toggleSearchExplanations = async (enabled: boolean) => {
     setError(null);
     try {
@@ -350,6 +360,18 @@ function EventFrame() {
             />
             <Text size="xs" c="dimmed" ta="right" maw={320}>
               Muestra "¿Por qué este resultado?" en los resultados de la búsqueda conceptual. Cada explicación usa IA (Gemini).
+            </Text>
+          </Stack>
+          <Stack gap={2} align="flex-end">
+            <Switch
+              size="md"
+              checked={event.searchQuestionsEnabled}
+              onChange={(e) => void toggleSearchQuestions(e.currentTarget.checked)}
+              label={event.searchQuestionsEnabled ? "Preguntas con IA activadas" : "Preguntas con IA desactivadas"}
+            />
+            <Text size="xs" c="dimmed" ta="right" maw={320}>
+              Agrega el modo "Preguntar" al buscador: los visitantes escriben una pregunta y reciben una respuesta breve con
+              los pósters agrupados por tema. Cada pregunta nueva usa IA (Gemini); las repetidas salen de caché.
             </Text>
           </Stack>
           <Stack gap={2} align="flex-end">

@@ -43,6 +43,22 @@ export const explainSearchMatch = async (
   return explanation;
 };
 
+export interface AskPostersResponse {
+  answer: string;
+  groups: Array<{ title: string; description: string; paperIds: string[] }>;
+  cached: boolean;
+}
+
+const askPostersCallable = httpsCallable<
+  { eventSlug: string; question: string; paperIds: string[]; language: string },
+  AskPostersResponse
+>(functions, "askPosters", { timeout: 70000 });
+
+// Modo "Preguntar": la IA resume y agrupa por tema los pósters candidatos (ya recuperados en el
+// navegador). Solo responde si el admin activó las preguntas del evento (si no, `failed-precondition`).
+export const askPosters = async (eventSlug: string, question: string, paperIds: string[], language: string) =>
+  (await askPostersCallable({ eventSlug, question, paperIds, language })).data;
+
 export interface ReindexPaperSearchResponse {
   ok: boolean;
   // Papers del evento (o 1 si se pidió un paper puntual).

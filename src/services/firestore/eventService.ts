@@ -33,6 +33,9 @@ export interface EventInfo {
   // Botón "¿Por qué este resultado?" en los resultados de la búsqueda conceptual (ver
   // MatchExplanation); apagado por defecto porque cada explicación es una llamada a Gemini.
   searchExplanationsEnabled: boolean;
+  // Modo "Preguntar" del buscador público (askPosters): respuesta breve + pósters agrupados por tema.
+  // Apagado por defecto, como las explicaciones: cada pregunta es una llamada a Gemini.
+  searchQuestionsEnabled: boolean;
   // Teclado en pantalla propio en los tótems (ver TouchKeyboard). Activado por defecto: un evento sin
   // el campo lo tiene. Desactivado, los campos de texto se comportan como en cualquier navegador
   // (en Windows, el teclado táctil del sistema si está configurado).
@@ -88,6 +91,7 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
     DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS
   ),
   searchExplanationsEnabled: data.searchExplanationsEnabled === true,
+  searchQuestionsEnabled: data.searchQuestionsEnabled === true,
   touchKeyboardEnabled: data.touchKeyboardEnabled !== false,
   publicStyle: data.publicStyle === "classic" ? "classic" : "glass",
   voteMode: toVoteMode(data),
@@ -147,6 +151,7 @@ export const updateEvent = (
       | "screensaverIdleSeconds"
       | "screensaverPhotoDurationSeconds"
       | "searchExplanationsEnabled"
+      | "searchQuestionsEnabled"
       | "touchKeyboardEnabled"
       | "publicStyle"
       | "voteMode"

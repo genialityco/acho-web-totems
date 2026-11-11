@@ -29,7 +29,14 @@ import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { useIsTotem } from "../hooks/useIsTotem";
 import { HighlightedText } from "./HighlightedText";
 import { MatchExplanation } from "./MatchExplanation";
-import { IconAdjustmentsHorizontal, IconEye, IconSearchOff } from "@tabler/icons-react";
+import {
+  IconAdjustmentsHorizontal,
+  IconAlertTriangle,
+  IconCircleCheckFilled,
+  IconEye,
+  IconSearchOff,
+  IconSparkles,
+} from "@tabler/icons-react";
 import { AdvancedSearchModal } from "./AdvancedSearchModal";
 import "./PosterList.css";
 
@@ -49,12 +56,27 @@ const GLASS_BUTTON_PALETTE = ["red", "violet", "teal", "gray", "orange", "cyan",
 const glassBadgeStyles = (color?: string | null) => ({
   root: { backgroundColor: tint(color, 22), color: lightColorVar(color), border: `1px solid ${tint(color, 45)}` },
 });
+// Contador de una opción seleccionada: blanco con el número en el color de la opción, para que
+// resalte sobre el relleno sólido.
+const selectedBadgeStyles = (color?: string | null) => ({
+  root: { backgroundColor: "#fff", color: colorVar(color), border: "none", fontWeight: 800 },
+});
+// Opciones seleccionadas (estilo "glass"): relleno sólido en su color, borde más claro y brillo intenso,
+// para que se distingan de un vistazo. Las demás quedan como estaban (sin atenuar).
+const selectedGlassSurface = (color?: string | null) => ({
+  background: `linear-gradient(135deg, ${colorVar(color)}, ${tint(color, 72)})`,
+  border: `2px solid color-mix(in srgb, ${colorVar(color)} 55%, white)`,
+  boxShadow: `0 0 0 3px ${tint(color, 30)}, 0 0 34px ${tint(color, 75)}, 0 10px 26px rgba(0, 0, 0, 0.45)`,
+  color: "#fff",
+});
+const FILTER_TRANSITION = "transform 150ms ease, box-shadow 150ms ease";
+
 const solidGlassBadgeStyles = (color: string) => ({
   root: { backgroundColor: colorVar(color), color: "#fff", border: `1px solid ${colorVar(color)}` },
 });
 
 export const PosterList = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     eventSlug,
     event,
@@ -77,11 +99,22 @@ export const PosterList = () => {
     fields,
     filters,
     toggleFilterOption,
-    selectionRequired,
     getPaperColor,
     advancedSearch,
     setAdvancedSearch,
+    canAsk,
+    askState,
+    askQuestion,
   } = usePosters();
+
+  // Modo "Preguntar": la pregunta se envía con el botón o con Enter (no con cada tecla: cada pregunta
+  // nueva es una llamada a la IA). Cierra el teclado (del sistema o el propio del tótem) al enviar.
+  const isAskMode = searchMode === "ask";
+  const askLoading = askState.status === "loading";
+  const submitQuestion = () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    askQuestion(i18n.resolvedLanguage === "en" ? "en" : "es");
+  };
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Estilo del sitio público configurado en el admin; "glass" por defecto.
@@ -126,6 +159,9 @@ export const PosterList = () => {
   };
 
   const handleSearchModeChange = (mode: string) => {
+    // Al pasar a "Preguntar" desde un modo de búsqueda se vacía el campo: un término de búsqueda
+    // ("inmunoterapia") no es una pregunta, y así se ve el texto de ejemplo del modo.
+    if (mode === "ask" && searchMode !== "ask") setSearchTerm("");
     setSearchMode(mode as SearchMode);
     setPage(1);
   };
@@ -148,25 +184,27 @@ export const PosterList = () => {
         role="button"
         tabIndex={0}
         aria-pressed={active}
-        style={
-          glass
-            ? {
-                cursor: "pointer",
-                background: `linear-gradient(${tint(color, active ? 34 : 14)}, ${tint(color, active ? 34 : 14)}), ${GLASS_SURFACE}`,
-                border: `${active ? 2 : 1}px solid ${tint(color, active ? 100 : 60)}`,
-                boxShadow: active
-                  ? `0 0 26px ${tint(color, 55)}, inset 0 0 22px ${tint(color, 25)}`
-                  : `0 0 14px ${tint(color, 28)}`,
-                color: "#f1f3f5",
-                backdropFilter: "blur(10px)",
-              }
+        style={{
+          cursor: "pointer",
+          transition: FILTER_TRANSITION,
+          transform: active ? "scale(1.02)" : undefined,
+          ...(glass
+            ? active
+              ? selectedGlassSurface(color)
+              : {
+                  background: `linear-gradient(${tint(color, 14)}, ${tint(color, 14)}), ${GLASS_SURFACE}`,
+                  border: `1px solid ${tint(color, 60)}`,
+                  boxShadow: `0 0 14px ${tint(color, 28)}`,
+                  color: "#f1f3f5",
+                  backdropFilter: "blur(10px)",
+                }
             : {
-                cursor: "pointer",
                 border: active ? `2px solid ${activeColor}` : "1px solid #ddd",
                 backgroundColor: active ? activeColor : "#fff",
                 color: active ? "#fff" : "inherit",
-              }
-        }
+                boxShadow: active ? `0 6px 18px ${tint(color, 45)}` : undefined,
+              }),
+        }}
         onClick={onSelect}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -183,13 +221,14 @@ export const PosterList = () => {
             size={isTotem ? "xl" : "lg"}
             radius="sm"
             variant={glass ? "light" : active ? "white" : "filled"}
-            styles={glass ? glassBadgeStyles(color) : undefined}
+            styles={glass ? (active ? selectedBadgeStyles(color) : glassBadgeStyles(color)) : undefined}
           >
             {count}
           </Badge>
-          <Text fw={600} fz={isTotem ? "1.375rem" : undefined}>
+          <Text fw={active ? 800 : 600} fz={isTotem ? "1.375rem" : undefined} style={{ flex: 1 }}>
             {label}
           </Text>
+          {active && <IconCircleCheckFilled size={isTotem ? 34 : 26} style={{ flex: "none" }} aria-hidden />}
         </Group>
       </Card>
     );
@@ -210,25 +249,30 @@ export const PosterList = () => {
       variant={glass ? "default" : active ? "filled" : "default"}
       aria-pressed={active}
       onClick={onSelect}
-      styles={
-        glass
-          ? {
-              root: {
-                background: `linear-gradient(${tint(glassColor, active ? 38 : 14)}, ${tint(glassColor, active ? 38 : 14)}), ${GLASS_SURFACE}`,
-                border: `${active ? 2 : 1}px solid ${tint(glassColor, active ? 100 : 55)}`,
-                color: "#f1f3f5",
-                boxShadow: active ? `0 0 20px ${tint(glassColor, 50)}` : `0 0 10px ${tint(glassColor, 22)}`,
-                backdropFilter: "blur(10px)",
-              },
-            }
-          : undefined
-      }
+      leftSection={active ? <IconCircleCheckFilled size={isTotem ? 26 : 18} aria-hidden /> : undefined}
+      styles={{
+        root: {
+          transition: FILTER_TRANSITION,
+          transform: active ? "scale(1.04)" : undefined,
+          fontWeight: active ? 800 : undefined,
+          ...(glass &&
+            (active
+              ? selectedGlassSurface(glassColor)
+              : {
+                  background: `linear-gradient(${tint(glassColor, 14)}, ${tint(glassColor, 14)}), ${GLASS_SURFACE}`,
+                  border: `1px solid ${tint(glassColor, 55)}`,
+                  color: "#f1f3f5",
+                  boxShadow: `0 0 10px ${tint(glassColor, 22)}`,
+                  backdropFilter: "blur(10px)",
+                })),
+        },
+      }}
       rightSection={
         <Badge
           size={isTotem ? "xl" : "sm"}
           variant={glass ? "light" : active ? "white" : "light"}
           radius="sm"
-          styles={glass ? glassBadgeStyles(glassColor) : undefined}
+          styles={glass ? (active ? selectedBadgeStyles(glassColor) : glassBadgeStyles(glassColor)) : undefined}
         >
           {count}
         </Badge>
@@ -423,6 +467,104 @@ export const PosterList = () => {
       </Text>
     ) : null;
 
+  // Respuesta del modo "Preguntar": un panel con la respuesta y, debajo, los pósters agrupados por tema
+  // (las mismas tarjetas de la lista). Reemplaza a la lista mientras hay una pregunta hecha.
+  const askPanelStyle = glass
+    ? {
+        backgroundColor: GLASS_CARD,
+        border: "1px solid rgba(34, 184, 207, 0.4)",
+        boxShadow: "0 0 32px rgba(34, 184, 207, 0.16)",
+        backdropFilter: "blur(12px)",
+        color: "#f1f3f5",
+      }
+    : undefined;
+  const renderAskResults = () => {
+    if (askState.status === "idle") return null;
+    if (askState.status === "loading") {
+      return (
+        <Card padding="xl" radius="md" withBorder style={askPanelStyle}>
+          <Group gap="md" wrap="nowrap">
+            <Loader size={isTotem ? "md" : "sm"} color="cyan" />
+            <Text fz={isTotem ? "lg" : "md"}>{t("posterList.ask.thinking")}</Text>
+          </Group>
+        </Card>
+      );
+    }
+    if (askState.status !== "done") {
+      return (
+        <Card padding="xl" radius="md" withBorder style={askPanelStyle}>
+          <Group gap="md" wrap="nowrap">
+            <IconAlertTriangle size={isTotem ? 30 : 22} color="var(--mantine-color-orange-5)" />
+            <Text fz={isTotem ? "lg" : "md"}>
+              {askState.status === "disabled" ? t("posterList.ask.disabled") : t("posterList.ask.error")}
+            </Text>
+          </Group>
+        </Card>
+      );
+    }
+    return (
+      <Stack gap="xl">
+        <Card padding="xl" radius="md" withBorder style={askPanelStyle}>
+          <Stack gap="xs">
+            <Group gap="xs" wrap="nowrap">
+              <IconSparkles size={isTotem ? 28 : 20} color="var(--mantine-color-cyan-5)" />
+              <Text fw={800} fz={isTotem ? "xl" : "lg"}>
+                {t("posterList.ask.answerTitle")}
+              </Text>
+            </Group>
+            <Text fz={isTotem ? "1.25rem" : "md"} lh={1.5} c={glass ? "gray.1" : undefined}>
+              {askState.answer ?? t("posterList.ask.noResults")}
+            </Text>
+            {askState.answer && (
+              <Text fz={isTotem ? "sm" : "xs"} c="dimmed" fs="italic">
+                {t("posterList.ask.aiNote")}
+              </Text>
+            )}
+          </Stack>
+        </Card>
+        {askState.groups.map((group, i) => (
+          <Stack key={`${i}-${group.title}`} gap="sm">
+            <Group gap="sm" align="center">
+              <Text
+                fw={800}
+                fz={isTotem ? "1.5rem" : "xl"}
+                c={glass ? "white" : undefined}
+                px={glass ? 0 : "sm"}
+                style={glass ? undefined : floatingPill}
+              >
+                {group.title}
+              </Text>
+              <Badge
+                size={isTotem ? "xl" : "lg"}
+                radius="sm"
+                color="cyan"
+                variant={glass ? "light" : "filled"}
+                styles={glass ? glassBadgeStyles("cyan") : undefined}
+              >
+                {t("posterList.ask.postersCount", { count: group.papers.length })}
+              </Badge>
+            </Group>
+            {group.description && (
+              <Text
+                fz={isTotem ? "lg" : "sm"}
+                c={glass ? "gray.3" : "dark.6"}
+                px={glass ? 0 : "sm"}
+                py={glass ? 0 : 4}
+                w="fit-content"
+                style={glass ? undefined : floatingPill}
+              >
+                {group.description}
+              </Text>
+            )}
+            <SimpleGrid cols={posterCols} spacing={isTotem ? "xl" : { base: "md", lg: "lg" }}>
+              {group.papers.map((poster) => renderPoster(poster))}
+            </SimpleGrid>
+          </Stack>
+        ))}
+      </Stack>
+    );
+  };
+
   return (
     <Container
       fluid
@@ -434,10 +576,17 @@ export const PosterList = () => {
       <Stack gap="xl">
         <Stack gap="xs">
           <TextInput
-            placeholder={t("posterList.searchPlaceholder")}
+            placeholder={isAskMode ? t("posterList.ask.placeholder") : t("posterList.searchPlaceholder")}
             size={isTotem ? "xl" : "lg"}
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (isAskMode && e.key === "Enter") {
+                e.preventDefault();
+                submitQuestion();
+              }
+            }}
+            maxLength={isAskMode ? 300 : undefined}
             rightSectionWidth={(semanticSearchLoading ? 76 : 48) + (isTotem ? 16 : 0)}
             rightSection={
               <Group gap={6} wrap="nowrap">
@@ -466,6 +615,7 @@ export const PosterList = () => {
                 { value: "exact", label: t("posterList.searchModeExact") },
                 { value: "semantic", label: t("posterList.searchModeSemantic") },
                 { value: "both", label: t("posterList.searchModeBoth") },
+                ...(canAsk ? [{ value: "ask", label: t("posterList.searchModeAsk") }] : []),
               ]}
             />
             {/* Va sobre el fondo del evento: recuadro claro, como los demás textos sueltos. */}
@@ -487,6 +637,32 @@ export const PosterList = () => {
               {t(`posterList.searchModeCaption.${searchMode}`)}
             </Text>
           </Group>
+          {isAskMode && (
+            <Button
+              size={isTotem ? "xl" : "md"}
+              fullWidth={isTotem}
+              w={isTotem ? undefined : "fit-content"}
+              leftSection={<IconSparkles size={isTotem ? 26 : 18} />}
+              onClick={submitQuestion}
+              loading={askLoading}
+              disabled={searchTerm.trim().length < 3}
+              variant={glass ? "default" : "filled"}
+              styles={
+                glass
+                  ? {
+                      root: {
+                        backgroundColor: "color-mix(in srgb, var(--mantine-color-cyan-6) 16%, transparent)",
+                        border: "2px solid var(--mantine-color-cyan-5)",
+                        color: "#f1f3f5",
+                        boxShadow: "0 0 18px color-mix(in srgb, var(--mantine-color-cyan-5) 50%, transparent)",
+                      },
+                    }
+                  : undefined
+              }
+            >
+              {t("posterList.ask.button")}
+            </Button>
+          )}
           {advancedCount > 0 && (
             <Group gap="xs">
               <Badge size="lg" variant="filled" style={{ cursor: "pointer" }} onClick={() => setAdvancedOpen(true)}>
@@ -551,31 +727,8 @@ export const PosterList = () => {
           <Center py="xl">
             <Loader size="lg" />
           </Center>
-        ) : selectionRequired ? (
-          <Center py="xl">
-            <Text
-              fz={isGiantUp ? "xl" : "lg"}
-              fw={600}
-              ta="center"
-              px="lg"
-              py="md"
-              c={glass ? "gray.1" : undefined}
-              style={
-                glass
-                  ? {
-                      backgroundColor: GLASS_SURFACE,
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                      borderRadius: "var(--mantine-radius-md)",
-                      backdropFilter: "blur(10px)",
-                    }
-                  : { backgroundColor: "rgba(255, 255, 255, 0.9)", borderRadius: "var(--mantine-radius-md)" }
-              }
-            >
-              {t("posterList.selectFiltersPrompt", {
-                filters: filters.map((f) => f.field.label.toLowerCase()).join(t("posterList.andOr")),
-              })}
-            </Text>
-          </Center>
+        ) : isAskMode && askState.status !== "idle" ? (
+          renderAskResults()
         ) : currentPagePosters.length === 0 ? (
           <Box>
             {resultsCountLabel}

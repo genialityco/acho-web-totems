@@ -6,7 +6,7 @@ import { isListField, optionIdsOf, PaperField, subscribeFields } from "../servic
 import { subscribePapers, Paper } from "../services/firestore/paperService";
 import { subscribeScreensaverItems, ScreensaverItem } from "../services/firestore/screensaverService";
 import { hasEmbedding, subscribePaperSearchIndex, PaperSearchIndex } from "../services/firestore/paperSearchIndexService";
-import { embedSearchQuery } from "../services/firestore/searchQueryService";
+import { askPosters, embedSearchQuery } from "../services/firestore/searchQueryService";
 import {
   buildSnippet,
   containsAllWords,
@@ -20,7 +20,8 @@ import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { trackEvent } from "../services/analytics";
 import {
   AdvancedSearch,
-  countAdvancedCriteria,
+  AskGroup,
+  AskState,
   EMPTY_ADVANCED_SEARCH,
   EventStatus,
   PostersContext,
@@ -44,6 +45,11 @@ const SEARCH_TRACK_DEBOUNCE_MS = 800;
 // (adapta el corte: las consultas cortas puntúan más bajo que las largas).
 const SEMANTIC_THRESHOLD = 0.62;
 const SEMANTIC_RELATIVE_WINDOW = 0.06;
+// Modo "Preguntar": candidatos que se le pasan a la IA para agrupar. Corte más permisivo que el de la
+// búsqueda conceptual (la IA descarta lo que no es relevante, pero no puede agrupar lo que no recibe).
+const ASK_MAX_CANDIDATES = 25;
+const ASK_MIN_SCORE = 0.55;
+const ASK_RELATIVE_WINDOW = 0.12;
 // Dónde coincide la búsqueda exacta: título > autor > cuerpo del PDF (0 = en ninguno). En modo
 // "Exacta" este nivel es el orden.
 const EXACT_TITLE = 3;
@@ -69,11 +75,13 @@ export const PostersProvider: React.FC<{
   const [loadFailed, setLoadFailed] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  // Búsqueda que de verdad se aplica: el texto del campo solo desde MIN_SEARCH_LENGTH caracteres.
-  const activeSearchTerm = normalizeText(searchTerm).length >= MIN_SEARCH_LENGTH ? searchTerm : "";
   // "Ambas" por defecto: lo exacto cubre siglas y nombres propios ("CMTN"), que lo conceptual pierde,
   // y lo conceptual encuentra lo que no está escrito literalmente.
   const [searchMode, setSearchMode] = useState<SearchMode>("both");
+  // Búsqueda que de verdad se aplica a la lista: el texto del campo solo desde MIN_SEARCH_LENGTH
+  // caracteres. En modo "Preguntar" el texto es una pregunta, no filtra la lista (ver askQuestion).
+  const activeSearchTerm =
+    searchMode !== "ask" && normalizeText(searchTerm).length >= MIN_SEARCH_LENGTH ? searchTerm : "";
   const [page, setPage] = useState(1);
   // Por campo: opciones elegidas en su filtro (vacío = no filtra por ese campo), y si el visitante ya tocó ese
   // filtro (revela el siguiente, si tiene revealAfterPrevious).
@@ -166,7 +174,8 @@ export const PostersProvider: React.FC<{
 
   useEffect(() => {
     const normalizedTerm = normalizeText(searchTerm);
-    if (searchMode === "exact" || normalizedTerm.length < MIN_SEARCH_LENGTH) {
+    // En "Preguntar" el embedding se pide al preguntar (askQuestion), no con cada tecla.
+    if (searchMode === "exact" || searchMode === "ask" || normalizedTerm.length < MIN_SEARCH_LENGTH) {
       debouncedEmbedQuery.cancel();
       embedRequestIdRef.current += 1;
       lastEmbeddedTermRef.current = null;
@@ -411,13 +420,6 @@ export const PostersProvider: React.FC<{
     setPage(1);
   };
 
-  // Con filtros y sin nada elegido ni buscado (normal o avanzado) no se listan pósters: se pide elegir primero.
-  const selectionRequired =
-    filters.length > 0 &&
-    activeSelections.length === 0 &&
-    !activeSearchTerm &&
-    countAdvancedCriteria(advancedSearch) === 0;
-
   // El primer filtro de tarjetas de colores da el color de cada póster (borde y etiqueta).
   const colorField = fields.find((f) => isListField(f) && f.filter === "cards");
   const getPaperColor = (paper: Paper) => {
@@ -445,6 +447,74 @@ export const PostersProvider: React.FC<{
   // Mientras el embedding de la consulta está en vuelo los resultados todavía no son válidos.
   const canExplainMatch = (paperId: string) =>
     !!event?.searchExplanationsEnabled && !semanticSearchLoading && semanticOnlyIds.has(paperId);
+
+  // ---- Modo "Preguntar" (askPosters)
+  const [askState, setAskState] = useState<AskState>({ status: "idle" });
+  const askRequestRef = useRef(0);
+  const canAsk = !!event?.searchQuestionsEnabled;
+
+  // Si el admin apaga las preguntas con el modo activo, se vuelve a "Ambas".
+  useEffect(() => {
+    if (!canAsk && searchMode === "ask") setSearchMode("both");
+  }, [canAsk, searchMode]);
+
+  // Al salir del modo se descarta la respuesta (y cualquier pregunta en vuelo).
+  useEffect(() => {
+    if (searchMode === "ask") return;
+    askRequestRef.current += 1;
+    setAskState({ status: "idle" });
+  }, [searchMode]);
+
+  // Recupera en el navegador los pósters más afines a la pregunta (embeddings, como la búsqueda
+  // conceptual) entre los que pasan los filtros elegidos, y le pide a la IA que responda y los agrupe
+  // por tema. Una respuesta vieja se descarta si mientras tanto se hizo otra pregunta.
+  const askQuestion = async (language: string) => {
+    const question = searchTerm.trim();
+    if (normalizeText(question).length < MIN_SEARCH_LENGTH) return;
+    const requestId = (askRequestRef.current += 1);
+    setAskState({ status: "loading", question });
+    try {
+      const questionEmbedding = await embedSearchQuery(question);
+      // En modo "Preguntar" filteredPosters ya es solo filtros + búsqueda avanzada (sin texto).
+      const scored = filteredPosters
+        .flatMap((paper) => {
+          const index = searchIndexByPaperId.get(paper.id);
+          return hasEmbedding(index) ? [{ paper, score: cosineSimilarity(questionEmbedding, index.embedding) }] : [];
+        })
+        .sort((a, b) => b.score - a.score);
+      const cutoff = Math.max(ASK_MIN_SCORE, (scored[0]?.score ?? 0) - ASK_RELATIVE_WINDOW);
+      const candidates = scored.filter((s) => s.score >= cutoff).slice(0, ASK_MAX_CANDIDATES);
+      if (askRequestRef.current !== requestId) return;
+      if (!candidates.length) {
+        setAskState({ status: "done", question, answer: null, groups: [] });
+        trackEvent("question_asked", { event_slug: eventSlug, has_results: false, cached: false });
+        return;
+      }
+
+      const response = await askPosters(
+        eventSlug,
+        question,
+        candidates.map((c) => c.paper.id),
+        language
+      );
+      if (askRequestRef.current !== requestId) return;
+      const byId = new Map(posters.map((paper) => [paper.id, paper]));
+      const groups: AskGroup[] = response.groups
+        .map((group) => ({
+          title: group.title,
+          description: group.description,
+          papers: group.paperIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])),
+        }))
+        .filter((group) => group.papers.length > 0);
+      setAskState({ status: "done", question, answer: response.answer, groups });
+      trackEvent("question_asked", { event_slug: eventSlug, has_results: groups.length > 0, cached: response.cached });
+    } catch (error) {
+      if (askRequestRef.current !== requestId) return;
+      console.error("Error al responder la pregunta:", error);
+      const code = (error as { code?: unknown })?.code;
+      setAskState({ status: code === "functions/failed-precondition" ? "disabled" : "error", question });
+    }
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredPosters.length / itemsPerPage));
   const currentPage = Math.min(page, totalPages);
@@ -477,12 +547,14 @@ export const PostersProvider: React.FC<{
         fields,
         filters,
         toggleFilterOption,
-        selectionRequired,
         selectedOptions,
         setFieldSelection,
         advancedSearch,
         setAdvancedSearch: updateAdvancedSearch,
         getPaperColor,
+        canAsk,
+        askState,
+        askQuestion: (language: string) => void askQuestion(language),
       }}
     >
       {children}
