@@ -40,6 +40,8 @@ export interface EventInfo {
   // imagen subida (wallEffectImageUrl, PNG transparente).
   wallEffectShape: WallShape;
   wallEffectImageUrl: string | null;
+  // Si la figura también se ve sobre el protector de pantalla. Activado por defecto (un campo ausente cuenta como true).
+  wallEffectOverScreensaver: boolean;
   // Cantidad de tótems de la pared y separación física entre pantallas (cm, se ajusta en sitio).
   wallScreens: number;
   // Separación física (cm) de cada hueco entre pantallas, de izquierda a derecha: [1–2, 2–3, 3–4…].
@@ -128,6 +130,7 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
     ? data.wallEffectShape
     : "sphere",
   wallEffectImageUrl: optionalUrl(data.wallEffectImageUrl),
+  wallEffectOverScreensaver: data.wallEffectOverScreensaver !== false,
   wallScreens:
     typeof data.wallScreens === "number" && data.wallScreens >= 1 && data.wallScreens <= 12
       ? Math.round(data.wallScreens)
@@ -202,6 +205,7 @@ export const updateEvent = (
       | "wallEffectColor"
       | "wallEffectShape"
       | "wallEffectImageUrl"
+      | "wallEffectOverScreensaver"
       | "wallScreens"
       | "wallGapsCm"
       | "backgroundUrl"

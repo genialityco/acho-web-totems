@@ -36,6 +36,7 @@ export default function WallSphere({
   shape,
   imageUrl,
   calibrate,
+  aboveScreensaver = false,
 }: {
   // Posición de este tótem en la pared (1 = el de más a la izquierda).
   position: number;
@@ -47,6 +48,10 @@ export default function WallSphere({
   shape: WallShape;
   imageUrl: string | null;
   calibrate: boolean;
+  // true mientras se ve el protector de pantalla: la capa sube por encima de él (zIndex 9999) para que la
+  // figura también se vea ahí. Sin eventos de puntero, así que tocar la pantalla sigue cerrando el protector.
+  // Es la misma instancia (no se vuelve a montar), así que la animación sigue sin cortes.
+  aboveScreensaver?: boolean;
 }) {
   const { t } = useTranslation();
   const sphereRef = useRef<HTMLDivElement>(null);
@@ -107,7 +112,7 @@ export default function WallSphere({
   return (
     <div
       aria-hidden
-      style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}
+      style={{ position: "fixed", inset: 0, zIndex: aboveScreensaver ? 10000 : 0, pointerEvents: "none", overflow: "hidden" }}
     >
       <div
         ref={sphereRef}

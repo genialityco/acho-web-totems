@@ -18,14 +18,16 @@ function EventGate() {
   const { eventStatus, event, screensaverItems } = usePosters();
   const isTotem = useIsTotem();
   const wall = useWallPosition();
-  // Durante el protector de pantalla la esfera no se muestra (ni se anima): mismo temporizador que el protector.
+  // Mientras se ve el protector de pantalla (mismo temporizador que el protector), la figura de la pared se
+  // dibuja por encima de él, para que también se vea sobre sus fotos/videos; si el evento lo desactiva
+  // (wallEffectOverScreensaver), se desmonta mientras dure el protector.
   const screensaverActive = eventStatus === "ready" && !!event?.screensaverEnabled && screensaverItems.length > 0;
   const screensaverShowing = useIdleTimer(event?.screensaverIdleSeconds ?? 120, screensaverActive);
   const showWallSphere =
     eventStatus === "ready" &&
     !!event?.wallEffectEnabled &&
     wall.position !== null &&
-    !screensaverShowing &&
+    (!screensaverShowing || event.wallEffectOverScreensaver) &&
     // "Imagen propia" sin imagen subida: no hay nada que mostrar.
     (event.wallEffectShape !== "image" || !!event.wallEffectImageUrl);
 
@@ -74,6 +76,7 @@ function EventGate() {
               shape={event.wallEffectShape}
               imageUrl={event.wallEffectImageUrl}
               calibrate={wall.calibrate}
+              aboveScreensaver={screensaverShowing}
             />
           ) : undefined
         }

@@ -7,10 +7,8 @@ const es = {
   },
   posterList: {
     searchPlaceholder: "Buscar un póster...",
-    searchModeExact: "Exacta",
-    searchModeSemantic: "Conceptual",
-    searchModeBoth: "Ambas",
-    searchModeAsk: "Preguntar",
+    searchModeBoth: "Búsqueda",
+    searchModeAsk: "Pregunta IA",
     searchModeCaption: {
       exact: "Busca coincidencias exactas en título, autores y el texto del documento.",
       semantic: "Busca por significado, aunque no uses las palabras exactas del documento.",

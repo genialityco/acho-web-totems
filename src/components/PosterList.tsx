@@ -634,17 +634,20 @@ export const PosterList = () => {
             }
           />
           <Group justify="space-between" wrap="wrap" gap="xs">
-            <SegmentedControl
-              size={isTotem ? "lg" : "sm"}
-              value={searchMode}
-              onChange={handleSearchModeChange}
-              data={[
-                { value: "exact", label: t("posterList.searchModeExact") },
-                { value: "semantic", label: t("posterList.searchModeSemantic") },
-                { value: "both", label: t("posterList.searchModeBoth") },
-                ...(canAsk ? [{ value: "ask", label: t("posterList.searchModeAsk") }] : []),
-              ]}
-            />
+            {/* Solo dos opciones para el visitante: "Búsqueda" (exacta + por significado, el modo "both") y
+                "Pregunta IA". Los modos "exact"/"semantic" siguen en el contexto pero no se ofrecen. Sin
+                preguntas activadas en el evento quedaría una sola opción, así que el selector no se muestra. */}
+            {canAsk && (
+              <SegmentedControl
+                size={isTotem ? "lg" : "sm"}
+                value={searchMode}
+                onChange={handleSearchModeChange}
+                data={[
+                  { value: "both", label: t("posterList.searchModeBoth") },
+                  { value: "ask", label: t("posterList.searchModeAsk") },
+                ]}
+              />
+            )}
             {/* Va sobre el fondo del evento: recuadro claro, como los demás textos sueltos. */}
             <Text
               fz={isTotem ? "md" : "xs"}

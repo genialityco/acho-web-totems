@@ -10,10 +10,8 @@ const en: typeof es = {
   },
   posterList: {
     searchPlaceholder: "Search for a poster...",
-    searchModeExact: "Exact",
-    searchModeSemantic: "Conceptual",
-    searchModeBoth: "Both",
-    searchModeAsk: "Ask",
+    searchModeBoth: "Search",
+    searchModeAsk: "Ask AI",
     searchModeCaption: {
       exact: "Finds exact matches in title, authors, and the document's text.",
       semantic: "Finds posters by meaning, even without the document's exact words.",

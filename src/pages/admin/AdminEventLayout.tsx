@@ -117,6 +117,7 @@ function EditEventModal({
   const [wallEffectEnabled, setWallEffectEnabled] = useState(event.wallEffectEnabled);
   const [wallEffectColor, setWallEffectColor] = useState(event.wallEffectColor);
   const [wallEffectShape, setWallEffectShape] = useState<WallShape>(event.wallEffectShape);
+  const [wallEffectOverScreensaver, setWallEffectOverScreensaver] = useState(event.wallEffectOverScreensaver);
   const [wallImageFile, setWallImageFile] = useState<File | null>(null);
   const [removeWallImage, setRemoveWallImage] = useState(false);
   const [wallImageProgress, setWallImageProgress] = useState<number | null>(null);
@@ -200,6 +201,7 @@ function EditEventModal({
         wallEffectColor,
         wallEffectShape,
         wallEffectImageUrl,
+        wallEffectOverScreensaver,
         wallScreens,
         wallGapsCm: visibleGaps as number[],
       });
@@ -283,12 +285,19 @@ function EditEventModal({
         <Text size="xs" c="dimmed">
           Una figura (esfera, plaqueta, célula o imagen propia) que recorre los tótems del evento puestos uno al lado del otro, como un solo fondo. Solo
           aparece en los tótems abiertos con su posición en la URL, de izquierda a derecha: /{event.slug}?pos=1, ?pos=2…
-          Agrega &calibrar=1 para ver las guías y ajustar cada separación. No se ve durante el protector de pantalla.
+          Agrega &calibrar=1 para ver las guías y ajustar cada separación.
         </Text>
         <Switch
           label="Fondo animado activado"
           checked={wallEffectEnabled}
           onChange={(e) => setWallEffectEnabled(e.currentTarget.checked)}
+          disabled={saving}
+        />
+        <Switch
+          label="Mostrar también sobre el protector de pantalla"
+          description="La figura pasa por encima de las fotos y videos del protector. Tocar la pantalla lo sigue cerrando."
+          checked={wallEffectOverScreensaver}
+          onChange={(e) => setWallEffectOverScreensaver(e.currentTarget.checked)}
           disabled={saving}
         />
         <Select
