@@ -4,7 +4,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "../lib/admin";
 import { answerPosterQuestion, GEMINI_API_KEY, QuestionPoster } from "../lib/gemini";
 import { describeAttributes, FieldDoc, readPaperIndexInputs } from "../lib/paperMetadata";
-import { clip, sanitizeGroups } from "../lib/askValidation";
+import { clip, sanitizeSections } from "../lib/askValidation";
 
 interface AskPostersRequest {
   eventSlug?: string;
@@ -17,14 +17,16 @@ interface AskPostersRequest {
 
 const MAX_QUESTION_LENGTH = 300;
 const MAX_CANDIDATES = 30;
-const MAX_GROUPS = 5;
-// Extracto del PDF por póster: suficiente para distinguir temas sin inflar el prompt (30 × ~1.2k caracteres).
-const EXCERPT_CHARS = 1_200;
+const MAX_SECTIONS = 5;
+// Extracto del PDF por póster: suficiente para explicar qué aporta cada uno sin inflar el prompt
+// (25 × ~1.5k caracteres, unos 10k tokens).
+const EXCERPT_CHARS = 1_500;
 // Vigencia de una respuesta guardada. Las preguntas se repiten mucho en un congreso; un día cubre el
 // evento sin servir para siempre respuestas de pósters que pudieron cambiar.
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 // Subirlo invalida la caché (cambio de prompt, modelo o validación).
-const ASK_VERSION = 1;
+// v2: una sola respuesta detallada (intro + secciones con una explicación por póster + cierre).
+const ASK_VERSION = 2;
 
 const normalizeQuestion = (q: string) =>
   q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
@@ -72,7 +74,12 @@ export const askPosters = onCall(
     const cached = await cacheRef.get();
     const cachedAt = cached.get("createdAt");
     if (cached.exists && cachedAt instanceof Timestamp && Date.now() - cachedAt.toMillis() < CACHE_TTL_MS) {
-      return { answer: cached.get("answer"), groups: cached.get("groups"), cached: true };
+      return {
+        intro: cached.get("intro"),
+        sections: cached.get("sections"),
+        conclusion: cached.get("conclusion"),
+        cached: true,
+      };
     }
 
     const [paperSnaps, indexSnaps, fieldsSnap] = await Promise.all([
@@ -115,15 +122,16 @@ export const askPosters = onCall(
       throw new HttpsError("internal", "No se pudo responder la pregunta.");
     }
 
-    const groups = sanitizeGroups(result.groups, idByRef, MAX_GROUPS);
-    const answer = clip(result.answer, 900);
-    if (!answer) {
+    const sections = sanitizeSections(result.sections, idByRef, MAX_SECTIONS);
+    const intro = clip(result.intro, 1_500);
+    const conclusion = clip(result.conclusion, 700);
+    if (!intro) {
       throw new HttpsError("internal", "No se pudo responder la pregunta.");
     }
 
     await cacheRef
-      .set({ question, language, answer, groups, createdAt: FieldValue.serverTimestamp() })
+      .set({ question, language, intro, sections, conclusion, createdAt: FieldValue.serverTimestamp() })
       .catch((err) => console.error("No se pudo guardar la respuesta en caché:", err));
-    return { answer, groups, cached: false };
+    return { intro, sections, conclusion, cached: false };
   }
 );

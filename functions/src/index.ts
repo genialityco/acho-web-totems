@@ -9,6 +9,7 @@ export * from "./search/explainSearchMatch";
 export * from "./search/askPosters";
 export * from "./search/reindexPaperSearch";
 export * from "./search/retryPaperSearchIndex";
+export * from "./wall/serverTime";
 
 interface CastVoteRequest {
   eventSlug?: string;

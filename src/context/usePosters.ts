@@ -15,17 +15,19 @@ export type PublicFilter = {
   selected: string[];
 };
 
-// "ask": el visitante escribe una pregunta y la IA (askPosters) responde y agrupa los pósters por tema.
+// "ask": el visitante escribe una pregunta y la IA (askPosters) responde con los pósters relevantes,
+// cada uno con su explicación, organizados por tema.
 // Solo existe si el admin activó las preguntas del evento (event.searchQuestionsEnabled).
 export type SearchMode = "exact" | "semantic" | "both" | "ask";
 
-export type AskGroup = { title: string; description: string; papers: Paper[] };
+// Una sección de la respuesta: un tema, y cada póster con lo que aporta a la pregunta.
+export type AskSection = { title: string; items: Array<{ paper: Paper; explanation: string }> };
 
-// Estado del modo "Preguntar". "done" con answer null = no hubo pósters candidatos (no se llamó a la IA).
+// Estado del modo "Preguntar". "done" con intro null = no hubo pósters candidatos (no se llamó a la IA).
 export type AskState =
   | { status: "idle" }
   | { status: "loading"; question: string }
-  | { status: "done"; question: string; answer: string | null; groups: AskGroup[] }
+  | { status: "done"; question: string; intro: string | null; sections: AskSection[]; conclusion: string }
   | { status: "error" | "disabled"; question: string };
 
 // Criterios de la búsqueda avanzada (AdvancedSearchModal). Se combinan entre sí y con la búsqueda

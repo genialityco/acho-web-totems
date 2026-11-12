@@ -2,6 +2,10 @@ import { Center, Loader, Text } from "@mantine/core";
 import { Outlet, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PublicShell from "../components/PublicShell";
+import AppQrButton from "../components/AppQrButton";
+import WallSphere from "../components/WallSphere";
+import { useWallPosition } from "../hooks/useWallPosition";
+import { useIdleTimer } from "../hooks/useIdleTimer";
 import ScreensaverManualTrigger from "../components/ScreensaverManualTrigger";
 import ScreensaverOverlay from "../components/ScreensaverOverlay";
 import TouchKeyboard from "../components/TouchKeyboard";
@@ -13,6 +17,17 @@ function EventGate() {
   const { t } = useTranslation();
   const { eventStatus, event, screensaverItems } = usePosters();
   const isTotem = useIsTotem();
+  const wall = useWallPosition();
+  // Durante el protector de pantalla la esfera no se muestra (ni se anima): mismo temporizador que el protector.
+  const screensaverActive = eventStatus === "ready" && !!event?.screensaverEnabled && screensaverItems.length > 0;
+  const screensaverShowing = useIdleTimer(event?.screensaverIdleSeconds ?? 120, screensaverActive);
+  const showWallSphere =
+    eventStatus === "ready" &&
+    !!event?.wallEffectEnabled &&
+    wall.position !== null &&
+    !screensaverShowing &&
+    // "Imagen propia" sin imagen subida: no hay nada que mostrar.
+    (event.wallEffectShape !== "image" || !!event.wallEffectImageUrl);
 
   let content;
   if (eventStatus === "loading") {
@@ -49,6 +64,24 @@ function EventGate() {
         idleSeconds={event?.screensaverIdleSeconds}
         // "glass" por defecto, también mientras carga el evento.
         publicStyle={event?.publicStyle ?? "glass"}
+        backgroundLayer={
+          showWallSphere && event && wall.position !== null ? (
+            <WallSphere
+              position={wall.position}
+              screens={event.wallScreens}
+              gapsCm={event.wallGapsCm}
+              color={event.wallEffectColor}
+              shape={event.wallEffectShape}
+              imageUrl={event.wallEffectImageUrl}
+              calibrate={wall.calibrate}
+            />
+          ) : undefined
+        }
+        topLeft={
+          event && (event.appAndroidUrl || event.appIosUrl) ? (
+            <AppQrButton eventSlug={event.slug} idleSeconds={event.screensaverIdleSeconds} />
+          ) : undefined
+        }
       >
         {content}
       </PublicShell>

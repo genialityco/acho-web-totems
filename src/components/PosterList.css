@@ -6,3 +6,24 @@
   transform: translateY(-2px);
   box-shadow: var(--mantine-shadow-md);
 }
+
+/* Pósters dentro de la respuesta del modo "Preguntar": se tocan para abrirlos. */
+.askAnswerItem {
+  transition: transform 120ms ease, filter 120ms ease;
+}
+.askAnswerItem:hover {
+  transform: translateX(3px);
+  filter: brightness(1.12);
+}
+
+/* Botón del QR de la app (AppQrButton): casi imperceptible a propósito. */
+.appQrButton {
+  opacity: 0.22;
+  color: #fff;
+  transition: opacity 150ms ease;
+}
+.appQrButton:hover,
+.appQrButton:focus-visible,
+.appQrButton:active {
+  opacity: 0.85;
+}

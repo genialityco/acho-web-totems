@@ -7,12 +7,17 @@ import {
   Button,
   Center,
   Code,
+  ColorInput,
+  Divider,
   FileInput,
   Group,
   Image,
   Loader,
   Modal,
+  NumberInput,
   Progress,
+  Select,
+  SimpleGrid,
   SegmentedControl,
   Stack,
   Switch,
@@ -26,10 +31,18 @@ import { IconArrowLeft, IconExternalLink, IconPencil, IconPhoto, IconTrash } fro
 import VotingControl from "../../components/admin/VotingControl";
 import { AdminEventProvider } from "../../context/AdminEventContext";
 import { useAdminEvent } from "../../context/useAdminEvent";
-import { EventInfo, PublicStyle, updateEvent, VoteMode } from "../../services/firestore/eventService";
+import {
+  DEFAULT_WALL_GAP_CM,
+  EventInfo,
+  PublicStyle,
+  updateEvent,
+  VoteMode,
+} from "../../services/firestore/eventService";
 import { isListField } from "../../services/firestore/fieldService";
 import { errorMessage } from "../../services/firestore/batch";
 import { deleteEventImage, MAX_EVENT_IMAGE_BYTES, uploadEventImage } from "../../services/storageService";
+import { isHttpUrl } from "../../utils/text";
+import { WALL_SHAPE_DEFAULT_COLORS, WallShape } from "../../utils/wallShapes";
 
 function EventImageField({
   label,
@@ -99,11 +112,46 @@ function EditEventModal({
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [removeBackground, setRemoveBackground] = useState(false);
   const [backgroundProgress, setBackgroundProgress] = useState<number | null>(null);
+  const [appAndroidUrl, setAppAndroidUrl] = useState(event.appAndroidUrl ?? "");
+  const [appIosUrl, setAppIosUrl] = useState(event.appIosUrl ?? "");
+  const [wallEffectEnabled, setWallEffectEnabled] = useState(event.wallEffectEnabled);
+  const [wallEffectColor, setWallEffectColor] = useState(event.wallEffectColor);
+  const [wallEffectShape, setWallEffectShape] = useState<WallShape>(event.wallEffectShape);
+  const [wallImageFile, setWallImageFile] = useState<File | null>(null);
+  const [removeWallImage, setRemoveWallImage] = useState(false);
+  const [wallImageProgress, setWallImageProgress] = useState<number | null>(null);
+  const [wallScreens, setWallScreens] = useState<number | string>(event.wallScreens);
+  // Una separación por hueco (1–2, 2–3…); al cambiar el número de tótems la lista se ajusta y los huecos
+  // nuevos arrancan en DEFAULT_WALL_GAP_CM.
+  const [wallGapsCm, setWallGapsCm] = useState<Array<number | string>>(event.wallGapsCm);
+  const gapCount = typeof wallScreens === "number" && wallScreens >= 1 ? Math.min(11, Math.max(0, wallScreens - 1)) : 0;
+  const visibleGaps = Array.from({ length: gapCount }, (_, i) => wallGapsCm[i] ?? DEFAULT_WALL_GAP_CM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (appAndroidUrl.trim() && !isHttpUrl(appAndroidUrl.trim())) {
+      return setError("El enlace de Google Play debe ser una URL completa (https://…).");
+    }
+    if (appIosUrl.trim() && !isHttpUrl(appIosUrl.trim())) {
+      return setError("El enlace de la App Store debe ser una URL completa (https://…).");
+    }
+    if (wallImageFile && wallImageFile.size > MAX_EVENT_IMAGE_BYTES) {
+      return setError("La imagen del fondo animado no puede superar los 5 MB.");
+    }
+    if (wallEffectEnabled && wallEffectShape === "image" && !wallImageFile && (removeWallImage || !event.wallEffectImageUrl)) {
+      return setError('Sube la imagen del fondo animado o elige otra figura.');
+    }
+    if (!/^#[0-9a-f]{6}$/i.test(wallEffectColor)) {
+      return setError("El color de la esfera debe ser un color hexadecimal (ej. #3bc9db).");
+    }
+    if (typeof wallScreens !== "number" || wallScreens < 1 || wallScreens > 12) {
+      return setError("La cantidad de tótems de la pared debe estar entre 1 y 12.");
+    }
+    if (visibleGaps.some((gap) => typeof gap !== "number" || gap < 0)) {
+      return setError("Cada separación entre pantallas debe ser 0 o más centímetros.");
+    }
     if (bannerFile && bannerFile.size > MAX_EVENT_IMAGE_BYTES) {
       return setError("La imagen del banner no puede superar los 5 MB.");
     }
@@ -133,11 +181,37 @@ function EditEventModal({
         backgroundUrl = null;
       }
 
-      await updateEvent(event.slug, { name: name.trim(), bannerUrl, backgroundUrl });
+      const previousWallImageUrl = event.wallEffectImageUrl;
+      let wallEffectImageUrl = previousWallImageUrl;
+      if (wallImageFile) {
+        setWallImageProgress(0);
+        wallEffectImageUrl = await uploadEventImage(event.slug, "wall", wallImageFile, setWallImageProgress).promise;
+      } else if (removeWallImage) {
+        wallEffectImageUrl = null;
+      }
+
+      await updateEvent(event.slug, {
+        name: name.trim(),
+        bannerUrl,
+        backgroundUrl,
+        appAndroidUrl: appAndroidUrl.trim() || null,
+        appIosUrl: appIosUrl.trim() || null,
+        wallEffectEnabled,
+        wallEffectColor,
+        wallEffectShape,
+        wallEffectImageUrl,
+        wallScreens,
+        wallGapsCm: visibleGaps as number[],
+      });
 
       if (previousBannerUrl && previousBannerUrl !== bannerUrl) {
         // El evento ya quedó guardado con la imagen nueva (o sin imagen); la anterior es basura en Storage.
         deleteEventImage(previousBannerUrl).catch((err) => console.error("No se pudo borrar el banner anterior:", err));
+      }
+      if (previousWallImageUrl && previousWallImageUrl !== wallEffectImageUrl) {
+        deleteEventImage(previousWallImageUrl).catch((err) =>
+          console.error("No se pudo borrar la imagen anterior del fondo animado:", err)
+        );
       }
       if (previousBackgroundUrl && previousBackgroundUrl !== backgroundUrl) {
         deleteEventImage(previousBackgroundUrl).catch((err) => console.error("No se pudo borrar el fondo anterior:", err));
@@ -149,6 +223,7 @@ function EditEventModal({
       setSaving(false);
       setBannerProgress(null);
       setBackgroundProgress(null);
+      setWallImageProgress(null);
     }
   };
 
@@ -184,6 +259,120 @@ function EditEventModal({
           progress={backgroundProgress}
           disabled={saving}
         />
+        <Divider label="App móvil (QR)" labelPosition="left" />
+        <Text size="xs" c="dimmed">
+          Con al menos un enlace, el sitio público muestra un botón discreto arriba a la izquierda que abre un QR. El QR
+          lleva a /{event.slug}/app, que abre la tienda según el celular: Google Play en Android, App Store en iPhone/iPad.
+          Vacíos = sin botón.
+        </Text>
+        <TextInput
+          label="Enlace de Google Play (Android)"
+          placeholder="https://play.google.com/store/apps/details?id=…"
+          value={appAndroidUrl}
+          onChange={(e) => setAppAndroidUrl(e.currentTarget.value)}
+          disabled={saving}
+        />
+        <TextInput
+          label="Enlace de la App Store (iOS)"
+          placeholder="https://apps.apple.com/app/…"
+          value={appIosUrl}
+          onChange={(e) => setAppIosUrl(e.currentTarget.value)}
+          disabled={saving}
+        />
+        <Divider label="Fondo animado (pared de tótems)" labelPosition="left" />
+        <Text size="xs" c="dimmed">
+          Una figura (esfera, plaqueta, célula o imagen propia) que recorre los tótems del evento puestos uno al lado del otro, como un solo fondo. Solo
+          aparece en los tótems abiertos con su posición en la URL, de izquierda a derecha: /{event.slug}?pos=1, ?pos=2…
+          Agrega &calibrar=1 para ver las guías y ajustar cada separación. No se ve durante el protector de pantalla.
+        </Text>
+        <Switch
+          label="Fondo animado activado"
+          checked={wallEffectEnabled}
+          onChange={(e) => setWallEffectEnabled(e.currentTarget.checked)}
+          disabled={saving}
+        />
+        <Select
+          label="Figura"
+          value={wallEffectShape}
+          onChange={(value) => {
+            if (!value) return;
+            const shape = value as WallShape;
+            setWallEffectShape(shape);
+            // Al cambiar de figura se propone su color típico (se puede ajustar después).
+            if (shape !== "image") setWallEffectColor(WALL_SHAPE_DEFAULT_COLORS[shape]);
+          }}
+          data={[
+            { value: "sphere", label: "Esfera de luz" },
+            { value: "platelet", label: "Plaqueta (hematología)" },
+            { value: "cancerCell", label: "Célula cancerígena (oncología)" },
+            { value: "image", label: "Imagen propia" },
+          ]}
+          allowDeselect={false}
+          disabled={saving}
+        />
+        {wallEffectShape === "image" && (
+          <EventImageField
+            label="Imagen de la figura"
+            description="PNG con fondo transparente, cuadrado (ej. 1000×1000 px). Máx. 5 MB. Asegúrate de tener la licencia de uso de la imagen."
+            currentUrl={event.wallEffectImageUrl}
+            file={wallImageFile}
+            onFileChange={(f) => {
+              setWallImageFile(f);
+              if (f) setRemoveWallImage(false);
+            }}
+            removed={removeWallImage}
+            onRemove={() => setRemoveWallImage(true)}
+            progress={wallImageProgress}
+            disabled={saving}
+          />
+        )}
+        <ColorInput
+          label={wallEffectShape === "image" ? "Color del brillo" : "Color de la figura"}
+          value={wallEffectColor}
+          onChange={setWallEffectColor}
+          format="hex"
+          swatches={["#3bc9db", "#c92a2a", "#ae3ec9", "#40c057", "#228be6", "#fab005"]}
+          disabled={saving}
+        />
+        <NumberInput
+          label="Tótems en la pared"
+          value={wallScreens}
+          onChange={setWallScreens}
+          min={1}
+          max={12}
+          allowDecimal={false}
+          disabled={saving}
+        />
+        {gapCount > 0 && (
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>
+              Separación entre pantallas (cm)
+            </Text>
+            <Text size="xs" c="dimmed">
+              Distancia entre el borde de la imagen de una pantalla y el de la siguiente, para cada par de tótems vecinos
+              (de izquierda a derecha).
+            </Text>
+            <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs">
+              {visibleGaps.map((gap, i) => (
+                <NumberInput
+                  key={i}
+                  label={`Tótems ${i + 1} – ${i + 2}`}
+                  value={gap}
+                  onChange={(value) =>
+                    setWallGapsCm((prev) => {
+                      const next = Array.from({ length: gapCount }, (_, j) => prev[j] ?? DEFAULT_WALL_GAP_CM);
+                      next[i] = value;
+                      return next;
+                    })
+                  }
+                  min={0}
+                  decimalScale={1}
+                  disabled={saving}
+                />
+              ))}
+            </SimpleGrid>
+          </Stack>
+        )}
         {error && <Alert color="red">{error}</Alert>}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose} disabled={saving}>

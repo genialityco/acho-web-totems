@@ -71,7 +71,7 @@ export const uploadPaperVideo = (eventSlug: string, file: File, onProgress?: (pe
 
 export const deletePaperVideo = deleteStorageFile;
 
-export type EventImageKind = "banner" | "background";
+export type EventImageKind = "banner" | "background" | "wall";
 
 // Sube el banner o la imagen de fondo de un evento y resuelve con su URL de descarga pública.
 export const uploadEventImage = (

@@ -2,27 +2,32 @@ import type { QuestionAnswer } from "./gemini";
 
 export const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 
-// Valida los grupos que devolvió el modelo (askPosters). El esquema JSON da la forma, no el contenido:
+export interface AnswerSection {
+  title: string;
+  items: Array<{ paperId: string; explanation: string }>;
+}
+
+// Valida las secciones que devolvió el modelo (askPosters). El esquema JSON da la forma, no el contenido:
 // acá se garantiza que solo aparezcan pósters que se le dieron (refs "P1"… traducidas a ids), cada uno
-// una sola vez, en grupos con título y al menos un póster, con tope de grupos y de largo de los textos.
-export function sanitizeGroups(
-  groups: QuestionAnswer["groups"],
+// una sola vez y con su explicación, en secciones con título y al menos un póster, con tope de secciones
+// y de largo de los textos.
+export function sanitizeSections(
+  sections: QuestionAnswer["sections"],
   idByRef: Map<string, string>,
-  maxGroups: number
-): Array<{ title: string; description: string; paperIds: string[] }> {
+  maxSections: number
+): AnswerSection[] {
   const used = new Set<string>();
-  return (Array.isArray(groups) ? groups : [])
-    .map((group) => {
-      const ids = (Array.isArray(group?.refs) ? group.refs : [])
-        .map((ref) => idByRef.get(String(ref).trim().toUpperCase()))
-        .filter((id): id is string => !!id && !used.has(id));
-      ids.forEach((id) => used.add(id));
-      return {
-        title: clip(typeof group?.title === "string" ? group.title.trim() : "", 80),
-        description: clip(typeof group?.description === "string" ? group.description.trim() : "", 240),
-        paperIds: ids,
-      };
+  return (Array.isArray(sections) ? sections : [])
+    .map((section) => {
+      const items = (Array.isArray(section?.items) ? section.items : []).flatMap((item) => {
+        const id = idByRef.get(String(item?.ref ?? "").trim().toUpperCase());
+        const explanation = typeof item?.explanation === "string" ? item.explanation.trim() : "";
+        if (!id || used.has(id) || !explanation) return [];
+        used.add(id);
+        return [{ paperId: id, explanation: clip(explanation, 500) }];
+      });
+      return { title: clip(typeof section?.title === "string" ? section.title.trim() : "", 80), items };
     })
-    .filter((group) => group.title && group.paperIds.length > 0)
-    .slice(0, maxGroups);
+    .filter((section) => section.title && section.items.length > 0)
+    .slice(0, maxSections);
 }

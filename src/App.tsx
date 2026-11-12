@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { theme } from "./theme";
 import HomePage from "./pages/HomePage";
 import PosterDetail from "./components/PosterDetail";
+import AppRedirectPage from "./pages/AppRedirectPage";
 import EventLayout from "./pages/EventLayout";
 import NotFoundPage from "./pages/NotFoundPage";
 import AdminRoot from "./pages/admin/AdminRoot";
@@ -47,6 +48,8 @@ export default function App() {
           <Route path="/:eventSlug" element={<EventLayout />}>
             <Route index element={<HomePage />} />
             <Route path="paper/:id" element={<PosterDetail />} />
+            {/* Destino del QR de la app: redirige a la tienda según el dispositivo. */}
+            <Route path="app" element={<AppRedirectPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

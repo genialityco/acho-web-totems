@@ -18,6 +18,7 @@ import {
   Tooltip,
   ActionIcon,
   Indicator,
+  UnstyledButton,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { Link, useNavigate } from "react-router-dom";
@@ -467,8 +468,9 @@ export const PosterList = () => {
       </Text>
     ) : null;
 
-  // Respuesta del modo "Preguntar": un panel con la respuesta y, debajo, los pósters agrupados por tema
-  // (las mismas tarjetas de la lista). Reemplaza a la lista mientras hay una pregunta hecha.
+  // Respuesta del modo "Preguntar": UNA sola respuesta, construida con los pósters — introducción, un
+  // apartado por tema donde cada póster aparece con su explicación (y se toca para abrirlo), y un
+  // cierre. Reemplaza a la lista mientras hay una pregunta hecha.
   const askPanelStyle = glass
     ? {
         backgroundColor: GLASS_CARD,
@@ -502,66 +504,91 @@ export const PosterList = () => {
         </Card>
       );
     }
+    const bodySize = isTotem ? "1.25rem" : "md";
+    const textColor = glass ? "gray.1" : undefined;
     return (
-      <Stack gap="xl">
-        <Card padding="xl" radius="md" withBorder style={askPanelStyle}>
-          <Stack gap="xs">
-            <Group gap="xs" wrap="nowrap">
-              <IconSparkles size={isTotem ? 28 : 20} color="var(--mantine-color-cyan-5)" />
-              <Text fw={800} fz={isTotem ? "xl" : "lg"}>
-                {t("posterList.ask.answerTitle")}
-              </Text>
-            </Group>
-            <Text fz={isTotem ? "1.25rem" : "md"} lh={1.5} c={glass ? "gray.1" : undefined}>
-              {askState.answer ?? t("posterList.ask.noResults")}
+      <Card padding={isTotem ? "xl" : "lg"} radius="md" withBorder style={askPanelStyle}>
+        <Stack gap={isTotem ? "lg" : "md"}>
+          <Group gap="xs" wrap="nowrap">
+            <IconSparkles size={isTotem ? 28 : 20} color="var(--mantine-color-cyan-5)" />
+            <Text fw={800} fz={isTotem ? "xl" : "lg"}>
+              {t("posterList.ask.answerTitle")}
             </Text>
-            {askState.answer && (
-              <Text fz={isTotem ? "sm" : "xs"} c="dimmed" fs="italic">
-                {t("posterList.ask.aiNote")}
-              </Text>
-            )}
-          </Stack>
-        </Card>
-        {askState.groups.map((group, i) => (
-          <Stack key={`${i}-${group.title}`} gap="sm">
-            <Group gap="sm" align="center">
-              <Text
-                fw={800}
-                fz={isTotem ? "1.5rem" : "xl"}
-                c={glass ? "white" : undefined}
-                px={glass ? 0 : "sm"}
-                style={glass ? undefined : floatingPill}
-              >
-                {group.title}
-              </Text>
-              <Badge
-                size={isTotem ? "xl" : "lg"}
-                radius="sm"
-                color="cyan"
-                variant={glass ? "light" : "filled"}
-                styles={glass ? glassBadgeStyles("cyan") : undefined}
-              >
-                {t("posterList.ask.postersCount", { count: group.papers.length })}
-              </Badge>
-            </Group>
-            {group.description && (
-              <Text
-                fz={isTotem ? "lg" : "sm"}
-                c={glass ? "gray.3" : "dark.6"}
-                px={glass ? 0 : "sm"}
-                py={glass ? 0 : 4}
-                w="fit-content"
-                style={glass ? undefined : floatingPill}
-              >
-                {group.description}
-              </Text>
-            )}
-            <SimpleGrid cols={posterCols} spacing={isTotem ? "xl" : { base: "md", lg: "lg" }}>
-              {group.papers.map((poster) => renderPoster(poster))}
-            </SimpleGrid>
-          </Stack>
-        ))}
-      </Stack>
+          </Group>
+          <Text fz={bodySize} lh={1.55} c={textColor}>
+            {askState.intro ?? t("posterList.ask.noResults")}
+          </Text>
+
+          {askState.sections.map((section, i) => (
+            <Stack key={`${i}-${section.title}`} gap="sm">
+              <Group gap="sm" align="center">
+                <Text fw={800} fz={isTotem ? "1.375rem" : "lg"} c={glass ? "white" : undefined}>
+                  {section.title}
+                </Text>
+                <Badge
+                  size={isTotem ? "lg" : "md"}
+                  radius="sm"
+                  color="cyan"
+                  variant="light"
+                  styles={glass ? glassBadgeStyles("cyan") : undefined}
+                >
+                  {t("posterList.ask.postersCount", { count: section.items.length })}
+                </Badge>
+              </Group>
+              {section.items.map(({ paper, explanation }) => {
+                const color = getPaperColor(paper);
+                return (
+                  // Cada póster es parte de la respuesta: su título (se toca para abrirlo) y lo que aporta.
+                  <UnstyledButton
+                    key={paper.id}
+                    component={Link}
+                    to={`/${eventSlug}/paper/${paper.id}`}
+                    className="askAnswerItem"
+                    style={{
+                      display: "block",
+                      padding: isTotem ? "14px 18px" : "10px 14px",
+                      borderRadius: "var(--mantine-radius-md)",
+                      borderLeft: `4px solid ${colorVar(color)}`,
+                      backgroundColor: glass ? tint(color, 10) : "var(--mantine-color-gray-0)",
+                      boxShadow: glass ? `-6px 0 16px -10px ${tint(color, 90)}` : undefined,
+                    }}
+                  >
+                    <Group justify="space-between" wrap="nowrap" align="flex-start" gap="sm">
+                      <Stack gap={4} style={{ minWidth: 0 }}>
+                        <Text fw={700} fz={isTotem ? "1.2rem" : "md"} lh={1.3} c={glass ? "white" : undefined} lineClamp={3}>
+                          {paper.title}
+                        </Text>
+                        {explanation && (
+                          <Text fz={isTotem ? "lg" : "sm"} lh={1.5} c={glass ? "gray.3" : "dark.5"}>
+                            {explanation}
+                          </Text>
+                        )}
+                      </Stack>
+                      <Group gap={4} wrap="nowrap" style={{ flex: "none", color: colorVar(color) }}>
+                        <IconEye size={isTotem ? 22 : 18} />
+                        <Text fz={isTotem ? "md" : "sm"} fw={700} c={glass ? lightColorVar(color) : undefined}>
+                          {t("posterList.viewPoster")}
+                        </Text>
+                      </Group>
+                    </Group>
+                  </UnstyledButton>
+                );
+              })}
+            </Stack>
+          ))}
+
+          {askState.conclusion && (
+            <Text fz={bodySize} lh={1.55} c={textColor}>
+              {askState.conclusion}
+            </Text>
+          )}
+          {askState.intro && (
+            <Text fz={isTotem ? "sm" : "xs"} c="dimmed" fs="italic">
+              {t("posterList.ask.aiNote")}
+            </Text>
+          )}
+        </Stack>
+      </Card>
     );
   };
 

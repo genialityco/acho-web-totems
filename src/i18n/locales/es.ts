@@ -15,7 +15,7 @@ const es = {
       exact: "Busca coincidencias exactas en título, autores y el texto del documento.",
       semantic: "Busca por significado, aunque no uses las palabras exactas del documento.",
       both: "Combina resultados exactos y por significado.",
-      ask: "Haz una pregunta: la IA responde y agrupa los pósters por tema.",
+      ask: "Haz una pregunta: la IA responde con los pósters del congreso, explicando qué aporta cada uno.",
     },
     categoryViewing: "Estás viendo {{name}}",
     categoryView: "Ver {{name}}",
@@ -41,7 +41,7 @@ const es = {
     ask: {
       placeholder: "Escribe tu pregunta, por ejemplo: ¿qué trabajos hay sobre inmunoterapia?",
       button: "Preguntar",
-      thinking: "Buscando y agrupando los pósters…",
+      thinking: "Buscando los pósters y preparando la respuesta…",
       answerTitle: "Respuesta",
       aiNote: "Generado con IA a partir de los pósters del congreso; revísalos para confirmar.",
       postersCount_one: "{{count}} póster",
@@ -113,6 +113,20 @@ const es = {
     done: "Listo",
     letters: "ABC",
     numbers: "123",
+  },
+  appQr: {
+    buttonLabel: "Descargar la app",
+    title: "Descarga la app del congreso",
+    hint: "Escanea el código con la cámara de tu celular: te lleva a la tienda de tu dispositivo (Google Play o App Store).",
+    redirecting: "Abriendo la tienda de aplicaciones…",
+    chooseStore: "Descarga la app del congreso",
+    googlePlay: "Descargar en Google Play",
+    appStore: "Descargar en la App Store",
+    notConfigured: "Este evento no tiene una app configurada.",
+  },
+  wall: {
+    calibrationScreen: "Tótem {{position}} de {{screens}}",
+    calibrationGaps: "Separación: izquierda {{left}} · derecha {{right}}",
   },
   screensaver: {
     tapToContinue: "Toca para continuar",

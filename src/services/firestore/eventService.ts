@@ -10,9 +10,13 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
+import { WALL_SHAPE_DEFAULT_COLORS, WALL_SHAPES, WallShape } from "../../utils/wallShapes";
 
 export const DEFAULT_SCREENSAVER_IDLE_SECONDS = 120;
 export const DEFAULT_SCREENSAVER_PHOTO_DURATION_SECONDS = 8;
+export const DEFAULT_WALL_EFFECT_COLOR = WALL_SHAPE_DEFAULT_COLORS.sphere;
+export const DEFAULT_WALL_SCREENS = 4;
+export const DEFAULT_WALL_GAP_CM = 10;
 
 export interface EventInfo {
   slug: string;
@@ -24,6 +28,23 @@ export interface EventInfo {
   votingClosesAt: Date | null;
   // Si están vacíos, el sitio público usa sus valores por defecto (ver PublicShell/HomePage).
   bannerUrl: string | null;
+  // Enlaces de la app móvil del evento en Google Play y en la App Store (null = sin app en esa tienda).
+  // Con al menos uno, el sitio público muestra el botón del QR (AppQrButton → /<evento>/app).
+  appAndroidUrl: string | null;
+  appIosUrl: string | null;
+  // Fondo animado de pared (WallSphere): una esfera que recorre los tótems del evento puestos uno al lado
+  // del otro. Apagado por defecto. Cada tótem indica su posición con ?pos=N en la URL.
+  wallEffectEnabled: boolean;
+  wallEffectColor: string;
+  // Figura que recorre la pared: esfera, plaqueta, célula cancerígena (dibujos propios, ver wallFigures) o una
+  // imagen subida (wallEffectImageUrl, PNG transparente).
+  wallEffectShape: WallShape;
+  wallEffectImageUrl: string | null;
+  // Cantidad de tótems de la pared y separación física entre pantallas (cm, se ajusta en sitio).
+  wallScreens: number;
+  // Separación física (cm) de cada hueco entre pantallas, de izquierda a derecha: [1–2, 2–3, 3–4…].
+  // Siempre tiene wallScreens − 1 valores (los que falten se completan con DEFAULT_WALL_GAP_CM).
+  wallGapsCm: number[];
   backgroundUrl: string | null;
   // Protector de pantalla por inactividad (ver ScreensaverOverlay); apagado por defecto
   // porque un evento nuevo no tiene fotos/videos configurados todavía.
@@ -76,6 +97,19 @@ const positiveNumber = (value: unknown, fallback: number) =>
 
 const optionalDate = (value: unknown) => (value instanceof Timestamp ? value.toDate() : null);
 
+// Una separación por hueco entre pantallas. Compat: antes había una sola (wallGapCm) para todos los huecos.
+const normalizeWallGaps = (data: DocumentData): number[] => {
+  const screens =
+    typeof data.wallScreens === "number" && data.wallScreens >= 1 && data.wallScreens <= 12
+      ? Math.round(data.wallScreens)
+      : DEFAULT_WALL_SCREENS;
+  const fallback = typeof data.wallGapCm === "number" && data.wallGapCm >= 0 ? data.wallGapCm : DEFAULT_WALL_GAP_CM;
+  const stored = Array.isArray(data.wallGapsCm) ? data.wallGapsCm : [];
+  return Array.from({ length: screens - 1 }, (_, i) =>
+    typeof stored[i] === "number" && stored[i] >= 0 ? stored[i] : fallback
+  );
+};
+
 const toEvent = (slug: string, data: DocumentData): EventInfo => ({
   slug,
   name: typeof data.name === "string" ? data.name : slug,
@@ -83,6 +117,22 @@ const toEvent = (slug: string, data: DocumentData): EventInfo => ({
   votingOpensAt: optionalDate(data.votingOpensAt),
   votingClosesAt: optionalDate(data.votingClosesAt),
   bannerUrl: optionalUrl(data.bannerUrl),
+  appAndroidUrl: optionalUrl(data.appAndroidUrl),
+  appIosUrl: optionalUrl(data.appIosUrl),
+  wallEffectEnabled: data.wallEffectEnabled === true,
+  wallEffectColor:
+    typeof data.wallEffectColor === "string" && /^#[0-9a-f]{6}$/i.test(data.wallEffectColor)
+      ? data.wallEffectColor
+      : DEFAULT_WALL_EFFECT_COLOR,
+  wallEffectShape: WALL_SHAPES.includes(data.wallEffectShape)
+    ? data.wallEffectShape
+    : "sphere",
+  wallEffectImageUrl: optionalUrl(data.wallEffectImageUrl),
+  wallScreens:
+    typeof data.wallScreens === "number" && data.wallScreens >= 1 && data.wallScreens <= 12
+      ? Math.round(data.wallScreens)
+      : DEFAULT_WALL_SCREENS,
+  wallGapsCm: normalizeWallGaps(data),
   backgroundUrl: optionalUrl(data.backgroundUrl),
   screensaverEnabled: data.screensaverEnabled === true,
   screensaverIdleSeconds: positiveNumber(data.screensaverIdleSeconds, DEFAULT_SCREENSAVER_IDLE_SECONDS),
@@ -146,6 +196,14 @@ export const updateEvent = (
       | "votingOpensAt"
       | "votingClosesAt"
       | "bannerUrl"
+      | "appAndroidUrl"
+      | "appIosUrl"
+      | "wallEffectEnabled"
+      | "wallEffectColor"
+      | "wallEffectShape"
+      | "wallEffectImageUrl"
+      | "wallScreens"
+      | "wallGapsCm"
       | "backgroundUrl"
       | "screensaverEnabled"
       | "screensaverIdleSeconds"

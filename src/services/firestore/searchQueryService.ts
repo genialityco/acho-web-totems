@@ -43,21 +43,63 @@ export const explainSearchMatch = async (
   return explanation;
 };
 
+// Una sola respuesta: introducción, secciones por tema con una explicación por póster, y cierre.
 export interface AskPostersResponse {
-  answer: string;
-  groups: Array<{ title: string; description: string; paperIds: string[] }>;
+  intro: string;
+  sections: Array<{ title: string; items: Array<{ paperId: string; explanation: string }> }>;
+  conclusion: string;
   cached: boolean;
 }
 
 const askPostersCallable = httpsCallable<
   { eventSlug: string; question: string; paperIds: string[]; language: string },
-  AskPostersResponse
+  unknown
 >(functions, "askPosters", { timeout: 70000 });
 
-// Modo "Preguntar": la IA resume y agrupa por tema los pósters candidatos (ya recuperados en el
-// navegador). Solo responde si el admin activó las preguntas del evento (si no, `failed-precondition`).
+const asText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+// Normaliza la respuesta de askPosters (como el resto de servicios con los datos de Firestore): nunca
+// confía en la forma. Acepta también el formato de la primera versión de la función ({answer, groups},
+// grupos de pósters sin explicación individual), para no romperse si el frontend nuevo llega a
+// producción antes que la función.
+const normalizeAskResponse = (data: unknown): AskPostersResponse => {
+  const raw = asRecord(data);
+  const sections = Array.isArray(raw.sections)
+    ? asArray(raw.sections).map((s) => {
+        const section = asRecord(s);
+        return {
+          title: asText(section.title),
+          items: asArray(section.items).flatMap((i) => {
+            const item = asRecord(i);
+            const paperId = asText(item.paperId);
+            return paperId ? [{ paperId, explanation: asText(item.explanation) }] : [];
+          }),
+        };
+      })
+    : asArray(raw.groups).map((g) => {
+        const group = asRecord(g);
+        return {
+          title: asText(group.title),
+          items: asArray(group.paperIds).flatMap((id) =>
+            typeof id === "string" && id ? [{ paperId: id, explanation: "" }] : []
+          ),
+        };
+      });
+  return {
+    intro: asText(raw.intro) || asText(raw.answer),
+    sections: sections.filter((s) => s.title && s.items.length > 0),
+    conclusion: asText(raw.conclusion),
+    cached: raw.cached === true,
+  };
+};
+
+// Modo "Preguntar": la IA responde con los pósters candidatos (ya recuperados en el navegador),
+// explicando qué aporta cada uno, organizados por tema. Solo responde si el admin activó las preguntas del evento (si no, `failed-precondition`).
 export const askPosters = async (eventSlug: string, question: string, paperIds: string[], language: string) =>
-  (await askPostersCallable({ eventSlug, question, paperIds, language })).data;
+  normalizeAskResponse((await askPostersCallable({ eventSlug, question, paperIds, language })).data);
 
 export interface ReindexPaperSearchResponse {
   ok: boolean;

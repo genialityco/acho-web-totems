@@ -18,7 +18,7 @@ const en: typeof es = {
       exact: "Finds exact matches in title, authors, and the document's text.",
       semantic: "Finds posters by meaning, even without the document's exact words.",
       both: "Combines exact and meaning-based results.",
-      ask: "Ask a question: AI answers and groups the posters by topic.",
+      ask: "Ask a question: AI answers with the congress posters, explaining what each one contributes.",
     },
     categoryViewing: "You are viewing {{name}}",
     categoryView: "View {{name}}",
@@ -44,7 +44,7 @@ const en: typeof es = {
     ask: {
       placeholder: "Type your question, e.g.: which studies are about immunotherapy?",
       button: "Ask",
-      thinking: "Finding and grouping the posters…",
+      thinking: "Finding the posters and preparing the answer…",
       answerTitle: "Answer",
       aiNote: "AI-generated from the congress posters; check them to confirm.",
       postersCount_one: "{{count}} poster",
@@ -116,6 +116,20 @@ const en: typeof es = {
     done: "Done",
     letters: "ABC",
     numbers: "123",
+  },
+  appQr: {
+    buttonLabel: "Get the app",
+    title: "Get the congress app",
+    hint: "Scan the code with your phone's camera: it takes you to your device's store (Google Play or App Store).",
+    redirecting: "Opening the app store…",
+    chooseStore: "Get the congress app",
+    googlePlay: "Get it on Google Play",
+    appStore: "Download on the App Store",
+    notConfigured: "This event has no app set up.",
+  },
+  wall: {
+    calibrationScreen: "Totem {{position}} of {{screens}}",
+    calibrationGaps: "Gap: left {{left}} · right {{right}}",
   },
   screensaver: {
     tapToContinue: "Tap to continue",

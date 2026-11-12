@@ -29,6 +29,8 @@ export default function PublicShell({
   backgroundUrl,
   idleSeconds = DEFAULT_IDLE_SECONDS,
   publicStyle = "classic",
+  topLeft,
+  backgroundLayer,
   children,
 }: {
   bannerUrl?: string | null;
@@ -36,6 +38,11 @@ export default function PublicShell({
   idleSeconds?: number;
   // Estilo del evento (ver PublicGlass.css); sin evento (NotFoundPage) se usa el clásico.
   publicStyle?: PublicStyle;
+  // Contenido opcional arriba a la izquierda del encabezado (ej. el botón del QR de la app).
+  topLeft?: ReactNode;
+  // Capa animada entre la imagen de fondo y el contenido (ej. la esfera de la pared de tótems); fija y sin
+  // eventos de puntero. El encabezado y el contenido van por encima (zIndex 1).
+  backgroundLayer?: ReactNode;
   children: ReactNode;
 }) {
   const expanded = useBannerExpanded(idleSeconds);
@@ -63,9 +70,11 @@ export default function PublicShell({
         }),
       }}
     >
+      {backgroundLayer}
       <Box
         style={{
           position: "relative",
+          zIndex: 1,
           width: "100%",
           display: "flex",
           justifyContent: "center",
@@ -113,9 +122,10 @@ export default function PublicShell({
         <Box style={{ position: "absolute", bottom: 8, right: 12 }}>
           <LanguageSwitcher />
         </Box>
+        {topLeft && <Box style={{ position: "absolute", top: 6, left: 8 }}>{topLeft}</Box>}
       </Box>
 
-      <Container fluid mt="md">
+      <Container fluid mt="md" style={{ position: "relative", zIndex: 1 }}>
         {children}
       </Container>
     </Box>

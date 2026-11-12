@@ -20,7 +20,7 @@ import { RESPONSIVE_BREAKPOINTS_EM } from "../theme";
 import { trackEvent } from "../services/analytics";
 import {
   AdvancedSearch,
-  AskGroup,
+  AskSection,
   AskState,
   EMPTY_ADVANCED_SEARCH,
   EventStatus,
@@ -486,7 +486,7 @@ export const PostersProvider: React.FC<{
       const candidates = scored.filter((s) => s.score >= cutoff).slice(0, ASK_MAX_CANDIDATES);
       if (askRequestRef.current !== requestId) return;
       if (!candidates.length) {
-        setAskState({ status: "done", question, answer: null, groups: [] });
+        setAskState({ status: "done", question, intro: null, sections: [], conclusion: "" });
         trackEvent("question_asked", { event_slug: eventSlug, has_results: false, cached: false });
         return;
       }
@@ -499,15 +499,17 @@ export const PostersProvider: React.FC<{
       );
       if (askRequestRef.current !== requestId) return;
       const byId = new Map(posters.map((paper) => [paper.id, paper]));
-      const groups: AskGroup[] = response.groups
-        .map((group) => ({
-          title: group.title,
-          description: group.description,
-          papers: group.paperIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])),
+      // Los pósters borrados entre la pregunta y la respuesta se omiten.
+      const sections: AskSection[] = response.sections
+        .map((section) => ({
+          title: section.title,
+          items: section.items.flatMap((item) =>
+            byId.has(item.paperId) ? [{ paper: byId.get(item.paperId)!, explanation: item.explanation }] : []
+          ),
         }))
-        .filter((group) => group.papers.length > 0);
-      setAskState({ status: "done", question, answer: response.answer, groups });
-      trackEvent("question_asked", { event_slug: eventSlug, has_results: groups.length > 0, cached: response.cached });
+        .filter((section) => section.items.length > 0);
+      setAskState({ status: "done", question, intro: response.intro, sections, conclusion: response.conclusion });
+      trackEvent("question_asked", { event_slug: eventSlug, has_results: sections.length > 0, cached: response.cached });
     } catch (error) {
       if (askRequestRef.current !== requestId) return;
       console.error("Error al responder la pregunta:", error);
