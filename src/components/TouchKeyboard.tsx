@@ -1,7 +1,8 @@
-import { PointerEvent as ReactPointerEvent, ReactNode, useEffect, useRef, useState } from "react";
-import { Box, UnstyledButton } from "@mantine/core";
+import { PointerEvent as ReactPointerEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Box, Portal, UnstyledButton } from "@mantine/core";
 import { IconBackspace } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { swallowNextClick } from "../utils/swallowNextClick";
 
 // Teclado en pantalla del sitio público en modo tótem (ver useIsTotem): los tótems son Windows con
 // Edge/Chrome y no hay que depender de cómo esté configurado el teclado táctil de cada equipo. Se monta
@@ -14,6 +15,12 @@ type Layout = "letters" | "numbers";
 const TEXT_INPUT_TYPES = new Set(["text", "search", "email", "tel", "number", "url"]);
 // inputmode original del campo (antes de forzar "none"), para elegir la distribución.
 const ORIGINAL_INPUTMODE_ATTR = "data-touch-keyboard-inputmode";
+// Un campo con data-touch-keyboard="below" (el buscador de PosterList) recibe el teclado justo debajo de
+// él, con su mismo ancho, en vez de fijo en la parte inferior de la pantalla.
+const ANCHOR_ATTR = "data-touch-keyboard";
+const ANCHOR_GAP = 8;
+
+type Anchor = { top: number; left: number; width: number };
 
 const LETTER_ROWS = ["1234567890", "qwertyuiop", "asdfghjklñ", "zxcvbnm-."];
 const NUMBER_ROWS = ["123", "456", "789"];
@@ -77,12 +84,25 @@ const backspace = (el: Editable) => {
 
 const KEY_HEIGHT = 76;
 
+const isAnchored = (el: Editable) => el.getAttribute(ANCHOR_ATTR) === "below";
+
+const anchorFor = (el: Editable): Anchor => {
+  const rect = el.getBoundingClientRect();
+  return { top: rect.bottom + ANCHOR_GAP, left: rect.left, width: rect.width };
+};
+
+const sameAnchor = (a: Anchor | null, b: Anchor) =>
+  !!a && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.left - b.left) < 0.5 && Math.abs(a.width - b.width) < 0.5;
+
 // `dark`: colores para el estilo "glass" del sitio público (ver PublicGlass.css).
 export default function TouchKeyboard({ dark = false }: { dark?: boolean }) {
   const { t } = useTranslation();
   const [target, setTarget] = useState<Editable | null>(null);
   const [layout, setLayout] = useState<Layout>("letters");
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const anchored = !!target && isAnchored(target);
+  const hasAnchor = anchor !== null;
 
   useEffect(() => {
     // pointerdown llega antes que el foco: es el momento de quitar el teclado del sistema.
@@ -120,35 +140,69 @@ export default function TouchKeyboard({ dark = false }: { dark?: boolean }) {
     };
   }, []);
 
+  // Teclado anclado: sigue al campo cuadro a cuadro mientras está abierto. El campo se mueve sin que
+  // haya scroll ni resize (ej. el banner de PublicShell se encoge tras el primer toque), así que se mide
+  // en cada frame y solo se re-renderiza si cambió la posición. Layout effect: se ubica antes del primer
+  // pintado, para que no aparezca un instante en otro sitio.
+  useLayoutEffect(() => {
+    if (!target || !isAnchored(target)) {
+      setAnchor(null);
+      return;
+    }
+    setAnchor(anchorFor(target));
+    let frame = requestAnimationFrame(function track() {
+      const next = anchorFor(target);
+      setAnchor((prev) => (sameAnchor(prev, next) ? prev : next));
+      frame = requestAnimationFrame(track);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
   // Mientras está abierto: espacio al final de la página para poder desplazar el contenido por encima
-  // del teclado, y el campo a la vista si quedó tapado.
+  // del teclado, y a la vista lo que debe verse (el campo, o el teclado entero si va debajo del campo).
   useEffect(() => {
     if (!target) return;
     const height = panelRef.current?.offsetHeight ?? 0;
     const previousPadding = document.body.style.paddingBottom;
     document.body.style.paddingBottom = `${height}px`;
     const rect = target.getBoundingClientRect();
-    const visibleBottom = window.innerHeight - height;
-    if (rect.bottom > visibleBottom - 16) window.scrollBy({ top: rect.bottom - visibleBottom + 48, behavior: "smooth" });
+    if (isAnchored(target)) {
+      const keyboardBottom = rect.bottom + ANCHOR_GAP + height;
+      if (keyboardBottom > window.innerHeight - 16) {
+        window.scrollBy({ top: keyboardBottom - window.innerHeight + 16, behavior: "smooth" });
+      }
+    } else {
+      const visibleBottom = window.innerHeight - height;
+      if (rect.bottom > visibleBottom - 16) window.scrollBy({ top: rect.bottom - visibleBottom + 48, behavior: "smooth" });
+    }
     return () => {
       document.body.style.paddingBottom = previousPadding;
     };
-  }, [target]);
+    // hasAnchor: el teclado anclado se pinta un render después de recibir el foco; hasta entonces no se
+    // conoce su altura.
+  }, [target, hasAnchor]);
 
   if (!target) return null;
 
   // Cada tecla actúa en pointerdown y cancela el comportamiento por defecto: así el campo no pierde el
   // foco (ni el cursor) al tocar el teclado, y la respuesta es inmediata.
-  const press = (action: () => void) => (event: ReactPointerEvent) => {
+  // `closes`: la tecla cierra el teclado (desaparece en el pointerdown), así que el click de ese mismo
+  // toque caería sobre lo que hay debajo (ej. una tarjeta de póster, que navega): se descarta.
+  const press = (action: () => void, closes: boolean) => (event: ReactPointerEvent) => {
     event.preventDefault();
+    if (closes) swallowNextClick();
     action();
   };
 
-  const key = (label: ReactNode, action: () => void, options: { flex?: number; accent?: boolean; ariaLabel?: string } = {}) => (
+  const key = (
+    label: ReactNode,
+    action: () => void,
+    options: { flex?: number; accent?: boolean; ariaLabel?: string; closes?: boolean } = {},
+  ) => (
     <UnstyledButton
       key={typeof label === "string" ? label : options.ariaLabel}
       aria-label={options.ariaLabel}
-      onPointerDown={press(action)}
+      onPointerDown={press(action, !!options.closes)}
       // Teclado físico / lector de pantalla: el clic también funciona (pointerdown ya lo hizo con el dedo).
       onClick={(event) => {
         if (event.detail === 0) action();
@@ -178,7 +232,14 @@ export default function TouchKeyboard({ dark = false }: { dark?: boolean }) {
     </UnstyledButton>
   );
 
-  const close = () => target.blur();
+  // En el buscador "Listo" también envía Enter: el teclado anclado tapa el botón "Preguntar" que va debajo,
+  // y en modo pregunta Enter es lo que la envía (en modo búsqueda Enter no hace nada).
+  const close = () => {
+    if (anchored) {
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+    }
+    target.blur();
+  };
   const backspaceKey = key(<IconBackspace size={34} />, () => backspace(target), {
     flex: 1.5,
     ariaLabel: t("touchKeyboard.backspace"),
@@ -199,41 +260,60 @@ export default function TouchKeyboard({ dark = false }: { dark?: boolean }) {
           key(t("touchKeyboard.numbers"), () => setLayout("numbers"), { flex: 1.5 }),
           key(t("touchKeyboard.clear"), () => setNativeValue(target, ""), { flex: 1.5 }),
           key(t("touchKeyboard.space"), () => typeText(target, " "), { flex: 5 }),
-          key(t("touchKeyboard.done"), close, { flex: 2, accent: true }),
+          key(t("touchKeyboard.done"), close, { flex: 2, accent: true, closes: true }),
         ]
       : [
           key(t("touchKeyboard.letters"), () => setLayout("letters")),
-          key(t("touchKeyboard.done"), close, { flex: 2, accent: true }),
+          key(t("touchKeyboard.done"), close, { flex: 2, accent: true, closes: true }),
         ];
 
+  if (anchored && !anchor) return null;
+
+  const placement =
+    anchored && anchor
+      ? {
+          top: anchor.top,
+          left: anchor.left,
+          width: anchor.width,
+          borderRadius: 16,
+          border: dark ? "1px solid rgba(255, 255, 255, 0.14)" : "1px solid rgba(0, 0, 0, 0.08)",
+          boxShadow: "0 12px 32px rgba(0, 0, 0, 0.35)",
+        }
+      : {
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderTop: dark ? "1px solid rgba(255, 255, 255, 0.1)" : undefined,
+          boxShadow: "0 -6px 24px rgba(0, 0, 0, 0.25)",
+        };
+
   return (
-    <Box
-      ref={panelRef}
-      role="group"
-      aria-label={t("touchKeyboard.label")}
-      // Los huecos entre teclas tampoco deben quitar el foco al campo.
-      onPointerDown={(event) => event.preventDefault()}
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        // Por encima de los modales de Mantine (200) y por debajo del protector de pantalla (9999).
-        zIndex: 1000,
-        padding: "16px 16px 20px",
-        backgroundColor: dark ? "rgba(12, 15, 21, 0.96)" : "rgba(222, 226, 230, 0.97)",
-        borderTop: dark ? "1px solid rgba(255, 255, 255, 0.1)" : undefined,
-        boxShadow: "0 -6px 24px rgba(0, 0, 0, 0.25)",
-        backdropFilter: dark ? "blur(12px)" : undefined,
-      }}
-    >
-      <Box mx="auto" style={{ maxWidth: layout === "letters" ? 1040 : 560, display: "grid", gap: 10 }}>
-        {[...rows, bottomRow].map((row, i) => (
-          <Box key={i} style={{ display: "flex", gap: 10 }}>
-            {row}
-          </Box>
-        ))}
+    // Portal al <body>: un ancestro con transform/filter atraparía el position: fixed.
+    <Portal>
+      <Box
+        ref={panelRef}
+        role="group"
+        aria-label={t("touchKeyboard.label")}
+        // Los huecos entre teclas tampoco deben quitar el foco al campo.
+        onPointerDown={(event) => event.preventDefault()}
+        style={{
+          position: "fixed",
+          ...placement,
+          // Por encima de los modales de Mantine (200) y por debajo del protector de pantalla (9999).
+          zIndex: 1000,
+          padding: "16px 16px 20px",
+          backgroundColor: dark ? "rgba(12, 15, 21, 0.96)" : "rgba(222, 226, 230, 0.97)",
+          backdropFilter: dark ? "blur(12px)" : undefined,
+        }}
+      >
+        <Box mx="auto" style={{ maxWidth: layout === "letters" ? 1040 : 560, display: "grid", gap: 10 }}>
+          {[...rows, bottomRow].map((row, i) => (
+            <Box key={i} style={{ display: "flex", gap: 10 }}>
+              {row}
+            </Box>
+          ))}
+        </Box>
       </Box>
-    </Box>
+    </Portal>
   );
 }

@@ -3,28 +3,8 @@ import { Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { useIdleTimer } from "../hooks/useIdleTimer";
 import { ScreensaverItem } from "../services/firestore/screensaverService";
-
-// Margen para que llegue el click del toque que despierta el protector (un toque largo tarda más).
-const SWALLOW_CLICK_MS = 1000;
-
-// El protector se cierra en el touchstart/mousedown (useIdleTimer), así que el click de ese mismo
-// toque, que llega al levantar el dedo, ya cae sobre lo que hay debajo (ej. una tarjeta de póster) y
-// lo abre sin querer. stopPropagation en el overlay no alcanza: cuando llega el click el overlay ya no
-// existe. Se descarta ese click en la fase de captura de window, antes de que llegue a React o a un
-// enlace; si no llega (ej. el toque fue un arrastre), el listener se retira solo.
-function swallowNextClick() {
-  const swallow = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    cleanup();
-  };
-  const timer = setTimeout(() => cleanup(), SWALLOW_CLICK_MS);
-  const cleanup = () => {
-    clearTimeout(timer);
-    window.removeEventListener("click", swallow, true);
-  };
-  window.addEventListener("click", swallow, true);
-}
+// El protector se cierra en el touchstart/mousedown (useIdleTimer): el click de ese toque se descarta.
+import { swallowNextClick } from "../utils/swallowNextClick";
 
 export default function ScreensaverOverlay({
   items,

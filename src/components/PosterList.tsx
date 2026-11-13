@@ -605,6 +605,8 @@ export const PosterList = () => {
           <TextInput
             placeholder={isAskMode ? t("posterList.ask.placeholder") : t("posterList.searchPlaceholder")}
             size={isTotem ? "xl" : "lg"}
+            // En los tótems el teclado en pantalla se abre justo debajo de este campo (ver TouchKeyboard).
+            data-touch-keyboard="below"
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.currentTarget.value)}
             onKeyDown={(e) => {
