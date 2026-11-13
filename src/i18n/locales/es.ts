@@ -125,6 +125,8 @@ const es = {
   wall: {
     calibrationScreen: "Tótem {{position}} de {{screens}}",
     calibrationGaps: "Separación: izquierda {{left}} · derecha {{right}}",
+    fpsFull: "{{fps}} fps · completo",
+    fpsReduced: "{{fps}} fps · reducido",
   },
   screensaver: {
     tapToContinue: "Toca para continuar",

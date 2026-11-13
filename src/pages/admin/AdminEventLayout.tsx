@@ -283,7 +283,7 @@ function EditEventModal({
         />
         <Divider label="Fondo animado (pared de tótems)" labelPosition="left" />
         <Text size="xs" c="dimmed">
-          Una figura (esfera, plaqueta, célula o imagen propia) que recorre los tótems del evento puestos uno al lado del otro, como un solo fondo. Solo
+          Una corriente de figuras (esferas, plaquetas, células o imagen propia) que cruza de izquierda a derecha los tótems del evento puestos uno al lado del otro, como un solo fondo. Solo
           aparece en los tótems abiertos con su posición en la URL, de izquierda a derecha: /{event.slug}?pos=1, ?pos=2…
           Agrega &calibrar=1 para ver las guías y ajustar cada separación.
         </Text>
@@ -295,7 +295,7 @@ function EditEventModal({
         />
         <Switch
           label="Mostrar también sobre el protector de pantalla"
-          description="La figura pasa por encima de las fotos y videos del protector. Tocar la pantalla lo sigue cerrando."
+          description="Las figuras pasan por encima de las fotos y videos del protector (solo las más cercanas). Tocar la pantalla lo sigue cerrando."
           checked={wallEffectOverScreensaver}
           onChange={(e) => setWallEffectOverScreensaver(e.currentTarget.checked)}
           disabled={saving}

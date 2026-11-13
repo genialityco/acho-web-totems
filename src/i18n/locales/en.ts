@@ -128,6 +128,8 @@ const en: typeof es = {
   wall: {
     calibrationScreen: "Totem {{position}} of {{screens}}",
     calibrationGaps: "Gap: left {{left}} · right {{right}}",
+    fpsFull: "{{fps}} fps · full",
+    fpsReduced: "{{fps}} fps · reduced",
   },
   screensaver: {
     tapToContinue: "Tap to continue",

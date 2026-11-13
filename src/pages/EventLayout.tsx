@@ -80,6 +80,7 @@ function EventGate() {
               shape={event.wallEffectShape}
               imageUrl={event.wallEffectImageUrl}
               calibrate={wall.calibrate}
+              showFps={wall.showFps}
               aboveScreensaver={screensaverShowing}
             />
           ) : undefined

@@ -32,11 +32,11 @@ export interface EventInfo {
   // Con al menos uno, el sitio público muestra el botón del QR (AppQrButton → /<evento>/app).
   appAndroidUrl: string | null;
   appIosUrl: string | null;
-  // Fondo animado de pared (WallSphere): una esfera que recorre los tótems del evento puestos uno al lado
-  // del otro. Apagado por defecto. Cada tótem indica su posición con ?pos=N en la URL.
+  // Fondo animado de pared (WallSphere): una corriente de figuras que cruza los tótems del evento puestos uno
+  // al lado del otro. Apagado por defecto. Cada tótem indica su posición con ?pos=N en la URL.
   wallEffectEnabled: boolean;
   wallEffectColor: string;
-  // Figura que recorre la pared: esfera, plaqueta, célula cancerígena (dibujos propios, ver wallFigures) o una
+  // Figura de la corriente: esfera, plaqueta, célula cancerígena (dibujos propios, ver wallFigures) o una
   // imagen subida (wallEffectImageUrl, PNG transparente).
   wallEffectShape: WallShape;
   wallEffectImageUrl: string | null;
