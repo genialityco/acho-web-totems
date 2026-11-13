@@ -7,15 +7,14 @@ import { useVotingPhase } from "../../hooks/useVotingPhase";
 import { VotingPhase } from "../../utils/votingSchedule";
 
 const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Bogota" }).format(date);
 
-// <input type="datetime-local"> trabaja con "YYYY-MM-DDTHH:mm" en la hora local del navegador.
-const toInputValue = (date: Date | null) => {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-const fromInputValue = (value: string) => (value ? new Date(value) : null);
+// <input type="datetime-local"> trabaja con "YYYY-MM-DDTHH:mm". Se interpreta siempre en hora de
+// Colombia (UTC-5, sin horario de verano), sin importar la zona horaria del navegador.
+const BOGOTA_OFFSET_MS = -5 * 60 * 60 * 1000;
+const toInputValue = (date: Date | null) =>
+  date ? new Date(date.getTime() + BOGOTA_OFFSET_MS).toISOString().slice(0, 16) : "";
+const fromInputValue = (value: string) => (value ? new Date(`${value}:00-05:00`) : null);
 
 const formatRemaining = (ms: number) => {
   const total = Math.max(0, Math.floor(ms / 1000));

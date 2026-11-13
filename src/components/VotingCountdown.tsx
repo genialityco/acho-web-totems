@@ -26,7 +26,12 @@ export default function VotingCountdown() {
     { value: totalSeconds % 60, label: t("votingCountdown.seconds") },
   ];
   const accent = opening ? "#4dabf7" : "#ff922b";
-  const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeStyle: "short" }).format(nextChange);
+  // Hora fija de Colombia sin importar la zona horaria del dispositivo (no se muestra la zona en el texto).
+  const date = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "America/Bogota",
+  }).format(nextChange);
 
   return (
     <Box
