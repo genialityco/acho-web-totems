@@ -1,5 +1,5 @@
 import { Center, Loader, Text } from "@mantine/core";
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet, useMatch, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PublicShell from "../components/PublicShell";
 import AppQrButton from "../components/AppQrButton";
@@ -21,7 +21,11 @@ function EventGate() {
   // Mientras se ve el protector de pantalla (mismo temporizador que el protector), la figura de la pared se
   // dibuja por encima de él, para que también se vea sobre sus fotos/videos; si el evento lo desactiva
   // (wallEffectOverScreensaver), se desmonta mientras dure el protector.
-  const screensaverActive = eventStatus === "ready" && !!event?.screensaverEnabled && screensaverItems.length > 0;
+  // Mientras se ve un póster el protector no se activa (ni por inactividad ni con el activador manual):
+  // alguien puede estar leyéndolo sin tocar la pantalla. Al volver a la lista, el conteo empieza de cero.
+  const viewingPoster = useMatch("/:eventSlug/paper/:id") !== null;
+  const screensaverActive =
+    eventStatus === "ready" && !!event?.screensaverEnabled && screensaverItems.length > 0 && !viewingPoster;
   const screensaverShowing = useIdleTimer(event?.screensaverIdleSeconds ?? 120, screensaverActive);
   const showWallSphere =
     eventStatus === "ready" &&
@@ -91,7 +95,7 @@ function EventGate() {
       {/* Teclado en pantalla para los campos de texto en los tótems (ver TouchKeyboard); el admin puede
           desactivarlo por evento, y entonces los campos se comportan como en cualquier navegador. */}
       {isTotem && event?.touchKeyboardEnabled !== false && <TouchKeyboard dark={event?.publicStyle !== "classic"} />}
-      {eventStatus === "ready" && event?.screensaverEnabled && screensaverItems.length > 0 && (
+      {screensaverActive && event && (
         <>
           <ScreensaverOverlay
             items={screensaverItems}

@@ -93,9 +93,10 @@ const PosterDetail = () => {
   const [totemViewerHeight, setTotemViewerHeight] = useState<number | null>(null);
 
   // El visor de PDF es un iframe de otro origen: la actividad del mouse/teclado dentro de
-  // él no llega a este window, así que el detector de inactividad del protector de pantalla
-  // (que escucha en window) no se entera. Mientras el foco quede en el iframe, simulamos
-  // actividad cada 5s para que alguien leyendo un poster no sea interrumpido a mitad de lectura.
+  // él no llega a este window, así que los detectores de inactividad (que escuchan en window)
+  // no se enteran. Mientras el foco quede en el iframe, simulamos actividad cada 5s. El
+  // protector de pantalla ya no se activa en esta página (ver EventLayout), pero el banner
+  // (useBannerExpanded) sí volvería a agrandarse a mitad de lectura y achicaría el visor.
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     const handleBlur = () => {
