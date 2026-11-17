@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
@@ -12,7 +12,7 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { IconRefresh } from "@tabler/icons-react";
+import { IconFileSpreadsheet, IconRefresh } from "@tabler/icons-react";
 import MetricsCharts from "../../components/admin/MetricsCharts";
 import ConfirmModal from "../../components/admin/ConfirmModal";
 import { usePagination } from "../../components/admin/usePagination";
@@ -20,7 +20,12 @@ import { useAdminEvent } from "../../context/useAdminEvent";
 import { formatAttribute, isListField } from "../../services/firestore/fieldService";
 import { errorMessage } from "../../services/firestore/batch";
 import { resetVotes } from "../../services/firestore/voteService";
-import { resetPaperMetrics } from "../../services/firestore/paperMetricsService";
+import {
+  DailyMetric,
+  resetPaperMetrics,
+  subscribeDailyMetrics,
+} from "../../services/firestore/paperMetricsService";
+import { exportResultsToExcel } from "../../components/admin/resultsExport";
 
 const CONFIRM_WORD = "REINICIAR";
 
@@ -36,7 +41,9 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default function AdminResults() {
-  const { eventSlug, fields, papers, voters, votes } = useAdminEvent();
+  const { eventSlug, event, fields, papers, voters, votes } = useAdminEvent();
+  const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -47,6 +54,26 @@ export default function AdminResults() {
   const [resettingMetrics, setResettingMetrics] = useState(false);
   const [metricsResetError, setMetricsResetError] = useState<string | null>(null);
   const [metricsResetResult, setMetricsResetResult] = useState<string | null>(null);
+
+  // Para las hojas de actividad diaria del Excel (MetricsCharts tiene su propia suscripción).
+  useEffect(() => subscribeDailyMetrics(eventSlug, setDailyMetrics, () => setDailyMetrics([])), [eventSlug]);
+
+  const handleExport = () => {
+    setExportError(null);
+    try {
+      exportResultsToExcel({
+        eventSlug,
+        eventName: event?.name ?? eventSlug,
+        fields,
+        papers,
+        voters,
+        votes,
+        dailyMetrics,
+      });
+    } catch (e) {
+      setExportError(`No se pudo generar el Excel: ${errorMessage(e)}`);
+    }
+  };
 
   const ranking = useMemo(
     () =>
@@ -141,12 +168,26 @@ export default function AdminResults() {
         </Alert>
       )}
 
+      {exportError && (
+        <Alert color="red" withCloseButton onClose={() => setExportError(null)}>
+          {exportError}
+        </Alert>
+      )}
+
       <MetricsCharts />
 
       <Stack gap="sm">
         <Group justify="space-between">
           <Title order={5}>Ranking de papers</Title>
           <Group gap="xs">
+            <Button
+              variant="light"
+              leftSection={<IconFileSpreadsheet size={16} />}
+              onClick={handleExport}
+              disabled={papers.length === 0 && votes.length === 0}
+            >
+              Exportar a Excel
+            </Button>
             <Button color="red" variant="outline" leftSection={<IconRefresh size={16} />} onClick={openMetricsReset}>
               Reiniciar vistas y descargas
             </Button>
